@@ -12,15 +12,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be4cb0de-90c0-4c32-ad4d-0b8c3784ad41" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/version.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../godot/demo/node_tunnel_demo.gd" beforeDir="false" afterPath="$PROJECT_DIR$/../godot/demo/node_tunnel_demo.gd" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../godot/demo/node_tunnel_demo.tscn" beforeDir="false" afterPath="$PROJECT_DIR$/../godot/demo/node_tunnel_demo.tscn" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dictionaries/project.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/node_tunnel_peer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/node_tunnel_peer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/relay_client.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/relay_client.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renet_packet_peer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renet_packet_peer.rs" afterDir="false" />
     </list>
@@ -30,6 +25,13 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:test" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Rust File" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
@@ -97,7 +99,7 @@
       <option name="presentableId" value="Default" />
       <updated>1762568840666</updated>
       <workItem from="1762568842160" duration="803000" />
-      <workItem from="1762569788303" duration="5218000" />
+      <workItem from="1762569788303" duration="7540000" />
     </task>
     <servers />
   </component>

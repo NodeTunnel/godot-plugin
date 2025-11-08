@@ -14,7 +14,8 @@ func network_print(msg: String):
 
 func _on_host_pressed() -> void:
 	peer = NodeTunnelPeer.new()
-	peer.connect_to_relay("168.220.90.208:8080")
+	#peer.connect_to_relay("168.220.90.208:8080")
+	peer.connect_to_relay("127.0.0.1:8080")
 	peer.host_room()
 	multiplayer.multiplayer_peer = peer
 	
@@ -27,7 +28,8 @@ func _on_host_pressed() -> void:
 
 func _on_join_pressed() -> void:
 	peer = NodeTunnelPeer.new()
-	peer.connect_to_relay("168.220.90.208:8080")
+	#peer.connect_to_relay("168.220.90.208:8080")
+	peer.connect_to_relay("127.0.0.1:8080")
 	peer.join_room(host_id.text)
 	multiplayer.multiplayer_peer = peer
 	

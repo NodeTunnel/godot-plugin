@@ -3,6 +3,7 @@ use renet_netcode::{ClientAuthentication, NetcodeClientTransport};
 use std::error::Error;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant, SystemTime};
+use crate::version::PROTOCOL_VERSION;
 
 pub struct ReceivedPacket {
     pub data: Vec<u8>,
@@ -35,7 +36,7 @@ impl RenetPacketPeer {
             server_addr,
             client_id,
             user_data: None,
-            protocol_id: 0,
+            protocol_id: PROTOCOL_VERSION,
         };
 
         let client = RenetClient::new(ConnectionConfig::default());

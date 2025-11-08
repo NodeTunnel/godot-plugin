@@ -68,7 +68,7 @@ impl RelayClient {
     }
 
     pub fn connect(&mut self, relay_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-        self.wake_server("https://relay-server.fly.dev/ready", 10)?;
+        //self.wake_server("https://relay-server.fly.dev/ready", 10)?;
         self.packet_peer.connect(relay_addr)?;
         self.state = RelayState::Connecting;
         Ok(())
