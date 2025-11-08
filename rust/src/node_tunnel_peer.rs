@@ -31,10 +31,10 @@ impl NodeTunnelPeer {
     fn room_connected(room_id: String);
 
     #[func]
-    fn host_room(&mut self, relay_addr: String) {
+    fn connect_to_relay(&mut self, relay_addr: String) {
         if let Ok(addr) = relay_addr.parse::<SocketAddr>() {
-            if let Err(e) = self.relay_client.create_room(addr) {
-                godot_error!("[NodeTunnel] Failed to create room: {}", e);
+            if let Err(e) = self.relay_client.connect(addr) {
+                godot_error!("[NodeTunnel] Failed to join relay: {}", e);
                 return;
             }
             self.connection_status = ConnectionStatus::CONNECTING;
@@ -44,17 +44,22 @@ impl NodeTunnelPeer {
     }
 
     #[func]
-    fn join_room(&mut self, relay_addr: String, host_id: String) {
-        if let Ok(addr) = relay_addr.parse::<SocketAddr>() {
-            if let Err(e) = self.relay_client.join_room(addr, host_id) {
-                godot_error!("[NodeTunnel] Failed to join room: {}", e);
-                return;
-            }
-            self.connection_status = ConnectionStatus::CONNECTED;
-            self.signals().peer_connected().emit(1);
-        } else {
-            godot_print!("[NodeTunnel] Invalid relay address: {}", relay_addr);
+    fn host_room(&mut self) {
+        if let Err(e) = self.relay_client.create_room() {
+            godot_error!("[NodeTunnel] Failed to create room: {}", e);
+            return;
         }
+        self.connection_status = ConnectionStatus::CONNECTING;
+    }
+
+    #[func]
+    fn join_room(&mut self, host_id: String) {
+        if let Err(e) = self.relay_client.join_room(host_id) {
+            godot_error!("[NodeTunnel] Failed to join room: {}", e);
+            return;
+        }
+        self.connection_status = ConnectionStatus::CONNECTED;
+        self.signals().peer_connected().emit(1);
     }
 
     fn handle_relay_event(&mut self, event: RelayEvent) {
@@ -144,7 +149,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
 
     fn set_transfer_channel(&mut self, p_channel: i32) {
         if p_channel != 0 {
-            godot_warn!("[NodeTunnel] Custom channel not supported: {}", p_channel);
+            godot_warn!("[NodeTunnel] Set to invalid channel: {}", p_channel);
         }
     }
 

@@ -1,8 +1,11 @@
 use std::error::Error;
 use std::net::SocketAddr;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::global::{godot_print, godot_warn};
 use renet::DefaultChannel;
+use reqwest::blocking::Client;
 use crate::packet_type::PacketType;
 use crate::renet_packet_peer::RenetPacketPeer;
 
@@ -17,6 +20,7 @@ pub enum RelayMode {
 enum RelayState {
     Disconnected,
     Connecting,
+    Connected,
     AwaitingRoom,
     InRoom
 }
@@ -45,17 +49,38 @@ impl RelayClient {
         }
     }
 
-    pub fn create_room(&mut self, relay_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+    pub fn wake_server(&mut self, endpoint: &str, timeout: u64) -> Result<(), Box<dyn Error>> {
+        let client = Client::new();
+        let start = Instant::now();
+
+        while start.elapsed() < Duration::from_secs(timeout) {
+            if client.get(endpoint)
+                .timeout(Duration::from_secs(2))
+                .send()
+                .is_ok()
+            {
+                return Ok(())
+            }
+            sleep(Duration::from_millis(200));
+        }
+
+        Err("Timeout".into())
+    }
+
+    pub fn connect(&mut self, relay_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+        self.wake_server("https://relay-server.fly.dev/ready", 10)?;
         self.packet_peer.connect(relay_addr)?;
-        self.mode = RelayMode::HostingRoom;
         self.state = RelayState::Connecting;
         Ok(())
     }
 
-    pub fn join_room(&mut self, relay_addr: SocketAddr, room_id: String) -> Result<(), Box<dyn Error>> {
-        self.packet_peer.connect(relay_addr)?;
+    pub fn create_room(&mut self) -> Result<(), Box<dyn Error>> {
+        self.mode = RelayMode::HostingRoom;
+        Ok(())
+    }
+
+    pub fn join_room(&mut self, room_id: String) -> Result<(), Box<dyn Error>> {
         self.mode = RelayMode::JoiningRoom(room_id);
-        self.state = RelayState::Connecting;
         Ok(())
     }
 
@@ -86,6 +111,10 @@ impl RelayClient {
         let mut events = Vec::new();
 
         if self.state == RelayState::Connecting && self.packet_peer.is_connected() {
+            self.state = RelayState::Connected;
+        }
+
+        if self.state == RelayState::Connected {
             match &self.mode {
                 RelayMode::HostingRoom => {
                     self.packet_peer.send(&PacketType::CreateRoom.to_bytes(), DefaultChannel::ReliableOrdered)?;
@@ -95,9 +124,7 @@ impl RelayClient {
                     self.packet_peer.send(&PacketType::JoinRoom(room_id.clone()).to_bytes(), DefaultChannel::ReliableOrdered)?;
                     self.state = RelayState::AwaitingRoom;
                 }
-                RelayMode::None => {
-                    return Err("Invalid mode".into());
-                }
+                RelayMode::None => {}
             }
         }
 

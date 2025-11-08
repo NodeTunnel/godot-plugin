@@ -13,9 +13,9 @@ func network_print(msg: String):
 	print("Message For ", multiplayer.get_unique_id(), ": ", msg)
 
 func _on_host_pressed() -> void:
-	push_warning("HOST")
 	peer = NodeTunnelPeer.new()
-	peer.host_room("127.0.0.1:8080")
+	peer.connect_to_relay("168.220.90.208:8080")
+	peer.host_room()
 	multiplayer.multiplayer_peer = peer
 	
 	peer.room_connected.connect(
@@ -26,9 +26,9 @@ func _on_host_pressed() -> void:
 	$UI.hide()
 
 func _on_join_pressed() -> void:
-	push_warning("JOIN")
 	peer = NodeTunnelPeer.new()
-	peer.join_room("127.0.0.1:8080", host_id.text)
+	peer.connect_to_relay("168.220.90.208:8080")
+	peer.join_room(host_id.text)
 	multiplayer.multiplayer_peer = peer
 	
 	$UI.hide()

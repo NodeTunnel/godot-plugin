@@ -25,7 +25,7 @@ impl RenetPacketPeer {
     }
 
     pub fn connect(&mut self, server_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-        let socket = UdpSocket::bind("127.0.0.1:0")?;
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.set_nonblocking(true)?;
 
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;

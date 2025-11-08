@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 godot = "0.4.2"
 renet = "1.2.0"
 renet_netcode = "1.2.0"
+reqwest = { version = "0.12.24", features = ["blocking"] }
