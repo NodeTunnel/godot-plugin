@@ -1,11 +1,9 @@
-use std::net::SocketAddr;
 use godot::builtin::PackedByteArray;
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
 use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
 use godot::global::{godot_error, godot_print, godot_warn, Error};
-use godot::obj::{Base, Gd, WithUserSignals};
-use crate::node_tunnel_config::NodeTunnelConfig;
+use godot::obj::{Base, WithUserSignals};
 use crate::relay_client::{RelayClient, RelayEvent};
 
 struct GamePacket {
@@ -17,9 +15,6 @@ struct GamePacket {
 #[derive(GodotClass)]
 #[class(tool, base=MultiplayerPeerExtension)]
 struct NodeTunnelPeer {
-    #[export]
-    config: Option<Gd<NodeTunnelConfig>>,
-
     unique_id: i32,
     connection_status: ConnectionStatus,
     target_peer: i32,
@@ -38,31 +33,12 @@ impl NodeTunnelPeer {
     fn forced_disconnect();
 
     #[func]
-    fn connect_to_relay(&mut self) {
-        let config = self.config.as_ref()
-            .expect("NodeTunnelConfig must be set before connecting")
-            .bind();
-
-        if config.http_wakeup_enabled {
-            match self.relay_client.wake_server(config.http_address.to_string(), config.http_wakeup_timeout) {
-                Ok(_) => {}
-                Err(err) => {
-                    godot_error!("Failed to wake server: {}", err)
-                }
-            }
-        } else {
-            godot_print!("[NodeTunnel] HTTP Wakeup is disabled, consider enabling if using provided servers")
+    fn connect_to_relay(&mut self, relay_address: String) {
+        if let Err(e) = self.relay_client.connect(relay_address) {
+            godot_error!("[NodeTunnel] Failed to join relay: {}", e);
+            return;
         }
-
-        if let Ok(addr) = config.relay_address.to_string().parse::<SocketAddr>() {
-            if let Err(e) = self.relay_client.connect(addr) {
-                godot_error!("[NodeTunnel] Failed to join relay: {}", e);
-                return;
-            }
-            self.connection_status = ConnectionStatus::CONNECTING;
-        } else {
-            godot_print!("[NodeTunnel] Invalid relay address: {}", config.relay_address);
-        }
+        self.connection_status = ConnectionStatus::CONNECTING;
     }
 
     #[func]
@@ -129,7 +105,6 @@ impl NodeTunnelPeer {
 impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
-            config: None,
             unique_id: 0,
             connection_status: ConnectionStatus::DISCONNECTED,
             target_peer: 0,

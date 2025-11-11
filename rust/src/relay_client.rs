@@ -1,12 +1,9 @@
 use std::error::Error;
 use std::net::SocketAddr;
-use std::thread::sleep;
-use std::time::{Duration, Instant};
+use std::str::FromStr;
 use godot::classes::multiplayer_peer::TransferMode;
-use godot::global::{godot_print, godot_warn};
+use godot::global::{godot_warn};
 use renet::DefaultChannel;
-use reqwest::blocking::Client;
-use crate::node_tunnel_config::NodeTunnelConfig;
 use crate::packet_type::PacketType;
 use crate::renet_packet_peer::RenetPacketPeer;
 
@@ -52,27 +49,10 @@ impl RelayClient {
         }
     }
 
-    pub fn wake_server(&mut self, http_addr: String, timeout: u32) -> Result<(), Box<dyn Error>> {
-        let client = Client::new();
-        let start = Instant::now();
+    pub fn connect(&mut self, relay_addr: String) -> Result<(), Box<dyn Error>> {
+        let socket_addr = SocketAddr::from_str(&relay_addr)?;
 
-        while start.elapsed() < Duration::from_secs(timeout as u64) {
-            if client.get(http_addr.to_owned() + "/ready")
-                .timeout(Duration::from_secs(2))
-                .send()
-                .is_ok()
-            {
-                return Ok(())
-            }
-            sleep(Duration::from_millis(200));
-        }
-
-        Err("Timeout".into())
-    }
-
-    pub fn connect(&mut self, relay_addr: SocketAddr) -> Result<(), Box<dyn Error>> {
-        //self.wake_server("https://relay-server.fly.dev/ready", 10)?;
-        self.packet_peer.connect(relay_addr)?;
+        self.packet_peer.connect(socket_addr)?;
         self.state = RelayState::Connecting;
         Ok(())
     }

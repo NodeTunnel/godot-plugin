@@ -1,21 +1,18 @@
 extends Node2D
 
 @export var player_scene: PackedScene
-@export var nodetunnel_config: NodeTunnelConfig
 
 @onready var host_id = $UI/HostID
 @onready var peer := NodeTunnelPeer.new()
 
 func _ready() -> void:
-	peer.config = nodetunnel_config
-	
 	peer.forced_disconnect.connect(
 		func():
 			$UI.show()
 	)
 
 func _on_host_pressed() -> void:
-	peer.connect_to_relay()
+	peer.connect_to_relay("127.0.0.1:8080")
 	peer.host_room()
 	multiplayer.multiplayer_peer = peer
 	
@@ -46,7 +43,7 @@ func _on_host_pressed() -> void:
 	$UI.hide()
 
 func _on_join_pressed() -> void:
-	peer.connect_to_relay()
+	peer.connect_to_relay("127.0.0.1:8080")
 	peer.join_room(host_id.text)
 	multiplayer.multiplayer_peer = peer
 	
