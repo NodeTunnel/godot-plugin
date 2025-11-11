@@ -33,8 +33,8 @@ impl NodeTunnelPeer {
     fn forced_disconnect();
 
     #[func]
-    fn connect_to_relay(&mut self, relay_address: String) {
-        if let Err(e) = self.relay_client.connect(relay_address) {
+    fn connect_to_relay(&mut self, relay_address: String, app_id: String) {
+        if let Err(e) = self.relay_client.connect(relay_address, app_id) {
             godot_error!("[NodeTunnel] Failed to join relay: {}", e);
             return;
         }

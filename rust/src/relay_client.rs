@@ -2,7 +2,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use godot::classes::multiplayer_peer::TransferMode;
-use godot::global::{godot_warn};
+use godot::global::{godot_print, godot_warn};
 use renet::DefaultChannel;
 use crate::packet_type::PacketType;
 use crate::renet_packet_peer::RenetPacketPeer;
@@ -18,6 +18,7 @@ pub enum RelayMode {
 enum RelayState {
     Disconnected,
     Connecting,
+    AwaitingAuthentication,
     Connected,
     AwaitingRoom,
     InRoom
@@ -37,6 +38,7 @@ pub struct RelayClient {
     pub mode: RelayMode,
     state: RelayState,
     room_id: Option<String>,
+    app_id: Option<String>,
 }
 
 impl RelayClient {
@@ -46,11 +48,13 @@ impl RelayClient {
             mode: RelayMode::None,
             state: RelayState::Disconnected,
             room_id: None,
+            app_id: None,
         }
     }
 
-    pub fn connect(&mut self, relay_addr: String) -> Result<(), Box<dyn Error>> {
+    pub fn connect(&mut self, relay_addr: String, app_id: String) -> Result<(), Box<dyn Error>> {
         let socket_addr = SocketAddr::from_str(&relay_addr)?;
+        self.app_id = Some(app_id);
 
         self.packet_peer.connect(socket_addr)?;
         self.state = RelayState::Connecting;
@@ -94,7 +98,16 @@ impl RelayClient {
         let mut events = Vec::new();
 
         if self.state == RelayState::Connecting && self.packet_peer.is_connected() {
-            self.state = RelayState::Connected;
+            let Some(app_id) = &self.app_id else {
+                return Err("app_id is unexpectedly null".into())
+            };
+
+            self.packet_peer.send(
+                &PacketType::Authenticate(app_id.clone()).to_bytes(),
+                DefaultChannel::ReliableOrdered
+            )?;
+
+            self.state = RelayState::AwaitingAuthentication;
         }
 
         if self.state == RelayState::Connected {
@@ -134,6 +147,9 @@ impl RelayClient {
                     }
                     PacketType::ForceDisconnect() => {
                         events.push(RelayEvent::ForceDisconnect)
+                    }
+                    PacketType::ClientAuthenticated() => {
+                        self.state = RelayState::Connected;
                     }
                     _ => {
                         godot_warn!("Received unexpected packet type: {:?}", packet)
