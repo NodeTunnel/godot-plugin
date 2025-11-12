@@ -205,7 +205,6 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
         self.signals().forced_disconnect().emit();
     }
 
-    // TODO: Implement
     fn disconnect_peer(&mut self, _p_peer: i32, _p_force: bool) {}
 
     fn get_unique_id(&self) -> i32 {
