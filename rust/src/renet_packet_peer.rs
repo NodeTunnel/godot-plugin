@@ -3,7 +3,7 @@ use renet_netcode::{ClientAuthentication, NetcodeClientTransport};
 use std::error::Error;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant, SystemTime};
-use crate::version::PROTOCOL_VERSION;
+use crate::protocol::version::PROTOCOL_VERSION;
 
 pub struct ReceivedPacket {
     pub data: Vec<u8>,

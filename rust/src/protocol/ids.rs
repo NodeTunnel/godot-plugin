@@ -1,0 +1,10 @@
+pub const AUTHENTICATE: u8 = 0;
+pub const CLIENT_AUTHENTICATED: u8 = 1;
+pub const CREATE_ROOM: u8 = 2;
+pub const JOIN_ROOM: u8 = 3;
+pub const CONNECTED_TO_ROOM: u8 = 4;
+pub const PEER_JOINED: u8 = 5;
+pub const PEER_LEFT: u8 = 6;
+pub const GAME_DATA: u8 = 7;
+pub const FORCE_DISCONNECT: u8 = 8;
+pub const ERROR_PACKET: u8 = 9;

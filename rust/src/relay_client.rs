@@ -4,7 +4,7 @@ use std::str::FromStr;
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::global::{godot_print, godot_warn};
 use renet::DefaultChannel;
-use crate::packet_type::PacketType;
+use crate::protocol::packet::PacketType;
 use crate::renet_packet_peer::RenetPacketPeer;
 
 #[derive(Debug, PartialEq)]
@@ -76,7 +76,7 @@ impl RelayClient {
             return Err("Not in room".into())
         }
         
-        let packet = PacketType::GameData(target, data).to_bytes();
+        let packet = PacketType::GameData { from_peer: target, data }.to_bytes();
 
         match transfer_mode {
             TransferMode::RELIABLE => {
@@ -103,7 +103,7 @@ impl RelayClient {
             };
 
             self.packet_peer.send(
-                &PacketType::Authenticate(app_id.clone()).to_bytes(),
+                &PacketType::Authenticate { app_id: app_id.clone() }.to_bytes(),
                 DefaultChannel::ReliableOrdered
             )?;
 
@@ -117,7 +117,7 @@ impl RelayClient {
                     self.state = RelayState::AwaitingRoom;
                 }
                 RelayMode::JoiningRoom(room_id) => {
-                    self.packet_peer.send(&PacketType::JoinRoom(room_id.clone()).to_bytes(), DefaultChannel::ReliableOrdered)?;
+                    self.packet_peer.send(&PacketType::JoinRoom {room_id: room_id.clone()}.to_bytes(), DefaultChannel::ReliableOrdered)?;
                     self.state = RelayState::AwaitingRoom;
                 }
                 RelayMode::None => {}
@@ -127,28 +127,30 @@ impl RelayClient {
         for received_packet in received_packets {
             if let Ok(packet) = PacketType::from_bytes(&received_packet.data) {
                 match packet {
-                    PacketType::ConnectedToRoom(room_id, peer_id) => {
+                    PacketType::ConnectedToRoom { room_id, peer_id } => {
+                        godot_print!("Joined room {}", peer_id);
                         self.state = RelayState::InRoom;
                         events.push(RelayEvent::RoomJoined { room_id, peer_id })
                     }
-                    PacketType::PeerJoinedRoom(peer_id) => {
+                    PacketType::PeerJoinedRoom { peer_id } => {
                         events.push(RelayEvent::PeerJoinedRoom { peer_id })
                     }
-                    PacketType::GameData(from_peer, data) => {
+                    PacketType::GameData { from_peer, data } => {
                         events.push(RelayEvent::GameDataReceived { 
                             transfer_mode: Self::channel_to_transfer_mode(received_packet.channel),
                             from_peer, data 
                         })
                     }
-                    PacketType::PeerLeftRoom(godot_peer_id) => {
+                    PacketType::PeerLeftRoom { peer_id } => {
                         events.push(RelayEvent::PeerLeftRoom {
-                            peer_id: godot_peer_id,
+                            peer_id,
                         })
                     }
-                    PacketType::ForceDisconnect() => {
+                    PacketType::ForceDisconnect => {
                         events.push(RelayEvent::ForceDisconnect)
                     }
-                    PacketType::ClientAuthenticated() => {
+                    PacketType::ClientAuthenticated => {
+                        godot_print!("Authenticated as relay client");
                         self.state = RelayState::Connected;
                     }
                     _ => {
