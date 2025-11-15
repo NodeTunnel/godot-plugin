@@ -1,4 +1,14 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# IDE
 .idea/
+
+# Built binaries
+addons/nodetunnel/bin/*.so
+addons/nodetunnel/bin/*.dll
+addons/nodetunnel/bin/*.dylib
+
+# Rust build artifacts
+src/target/

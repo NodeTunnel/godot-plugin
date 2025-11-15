@@ -771,6 +771,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodetunnel"
+version = "0.1.0"
+dependencies = [
+ "godot",
+ "renet",
+ "renet_netcode",
+ "reqwest",
+]
+
+[[package]]
 name = "octets"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1024,16 +1034,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "rust"
-version = "0.1.0"
-dependencies = [
- "godot",
- "renet",
- "renet_netcode",
- "reqwest",
 ]
 
 [[package]]

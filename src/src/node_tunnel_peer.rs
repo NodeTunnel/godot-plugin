@@ -1,10 +1,14 @@
+use std::net::SocketAddr;
+use std::str::FromStr;
 use godot::builtin::PackedByteArray;
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
 use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
 use godot::global::{godot_error, godot_print, godot_warn, Error};
 use godot::obj::{Base, WithUserSignals};
-use crate::relay_client::{RelayClient, RelayEvent};
+use crate::relay_client::client::RelayClient;
+use crate::relay_client::events::RelayEvent;
+use crate::transport::renet::RenetTransport;
 
 struct GamePacket {
     from_peer: i32,
@@ -15,6 +19,7 @@ struct GamePacket {
 #[derive(GodotClass)]
 #[class(tool, base=MultiplayerPeerExtension)]
 struct NodeTunnelPeer {
+    app_id: String,
     unique_id: i32,
     connection_status: ConnectionStatus,
     target_peer: i32,
@@ -27,6 +32,9 @@ struct NodeTunnelPeer {
 #[godot_api]
 impl NodeTunnelPeer {
     #[signal]
+    fn authenticated();
+
+    #[signal]
     fn room_connected(room_id: String);
 
     #[signal]
@@ -34,68 +42,68 @@ impl NodeTunnelPeer {
 
     #[func]
     fn connect_to_relay(&mut self, relay_address: String, app_id: String) {
-        if let Err(e) = self.relay_client.connect(relay_address, app_id) {
-            godot_error!("[NodeTunnel] Failed to join relay: {}", e);
-            return;
-        }
+        self.app_id = app_id;
+        let transport = RenetTransport::new(SocketAddr::from_str(relay_address.as_str()).unwrap()).unwrap();
+        self.relay_client.connect(transport);
         self.connection_status = ConnectionStatus::CONNECTING;
     }
 
     #[func]
     fn host_room(&mut self) {
-        if let Err(e) = self.relay_client.create_room() {
-            godot_error!("[NodeTunnel] Failed to create room: {}", e);
-            return;
-        }
-        self.connection_status = ConnectionStatus::CONNECTING;
+        self.relay_client.req_create_room();
     }
 
     #[func]
     fn join_room(&mut self, host_id: String) {
-        if let Err(e) = self.relay_client.join_room(host_id) {
-            godot_error!("[NodeTunnel] Failed to join room: {}", e);
-            return;
-        }
-        self.connection_status = ConnectionStatus::CONNECTED;
-        self.signals().peer_connected().emit(1);
+        self.relay_client.req_join_room(host_id);
     }
 
     fn handle_relay_event(&mut self, event: RelayEvent) {
         match event {
+            RelayEvent::ConnectedToServer => {
+                godot_print!("Connected to relay server, sending auth request");
+                self.relay_client.req_auth(self.app_id.clone());
+            },
+            RelayEvent::Authenticated => {
+                godot_print!("Authenticated with relay server");
+                self.connection_status = ConnectionStatus::CONNECTED;
+                self.signals().authenticated().emit();
+            }
             RelayEvent::RoomJoined { room_id, peer_id } => {
                 godot_print!("Joined room {}", peer_id);
-
                 self.unique_id = peer_id;
 
-                if self.is_server() {
-                    godot_print!("'Server' connected to room");
-                } else {
+                if !self.is_server() {
                     self.signals().peer_connected().emit(1);
-                    godot_print!("'Client' connected to room")
                 }
 
-                self.connection_status = ConnectionStatus::CONNECTED;
                 self.signals().room_connected().emit(room_id);
-            }
+            },
             RelayEvent::PeerJoinedRoom { peer_id } => {
+                godot_print!("Peer {} joined room", peer_id);
                 if self.is_server() {
                     self.signals().peer_connected().emit(peer_id as i64);
                 }
-            }
+            },
             RelayEvent::PeerLeftRoom { peer_id } => {
+                godot_print!("Peer {} left room", peer_id);
                 if self.is_server() {
                     self.signals().peer_disconnected().emit(peer_id as i64);
                 }
-            }
-            RelayEvent::GameDataReceived { transfer_mode, from_peer, data } => {
+            },
+            RelayEvent::GameDataReceived { channel, from_peer, data } => {
                 self.incoming_packets.push(GamePacket {
-                    transfer_mode,
+                    transfer_mode: channel.into(),
                     from_peer,
                     data
                 })
-            }
+            },
             RelayEvent::ForceDisconnect => {
+                godot_print!("Force disconnecting");
                 self.close();
+            }
+            _ => {
+                godot_error!("[NodeTunnel] Unhandled relay event: {:?}", event);
             }
         }
     }
@@ -105,6 +113,7 @@ impl NodeTunnelPeer {
 impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
+            app_id: "".to_string(),
             unique_id: 0,
             connection_status: ConnectionStatus::DISCONNECTED,
             target_peer: 0,
@@ -135,10 +144,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn put_packet_script(&mut self, p_buffer: PackedByteArray) -> Error {
         let data: Vec<u8> = p_buffer.to_vec();
 
-        if let Err(e) = self.relay_client.send_game_data(self.target_peer, data, self.transfer_mode) {
-            godot_error!("[NodeTunnel] Failed to send packet: {}", e);
-            return Error::ERR_CANT_CONNECT;
-        }
+        self.relay_client.send_game_data(self.target_peer, data, self.transfer_mode.into());
 
         Error::OK
     }
@@ -189,9 +195,9 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
         match self.relay_client.update() {
             Ok(events) => {
                 for event in events {
-                    self.handle_relay_event(event);
+                    self.handle_relay_event(event)
                 }
-            }
+            },
             Err(e) => {
                 godot_error!("[NodeTunnel] Relay error: {}", e);
             }

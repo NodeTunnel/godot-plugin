@@ -10,7 +10,16 @@ config_version=5
 
 [application]
 
-config/name="NodeTunnel"
+config/name="NodeTunnel Minimal Demo"
+config/description="A minimal demo of what is required to get NodeTunnel working in your Godot game."
 run/main_scene="uid://f23eh00fbej4"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/nodetunnel/plugin.cfg")
+
+[global_group]
+
+network_nodes=""

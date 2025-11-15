@@ -1,0 +1,114 @@
+[gd_scene load_steps=5 format=3 uid="uid://f23eh00fbej4"]
+
+[ext_resource type="Script" uid="uid://7oy3c8wr1bcw" path="res://demo/node_tunnel_demo.gd" id="1_nk7jj"]
+[ext_resource type="Script" uid="uid://dfdj6tvhagfqf" path="res://demo/player_spawner.gd" id="2_81dm8"]
+[ext_resource type="PackedScene" uid="uid://18tdvkep7yx6" path="res://demo/player.tscn" id="3_e3iq8"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_81dm8"]
+font_size = 32
+
+[node name="NodeTunnel Demo" type="Node2D"]
+script = ExtResource("1_nk7jj")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Connecting" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="UI/Connecting"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -50.5
+offset_top = -11.5
+offset_right = 50.5
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "Connecting..."
+label_settings = SubResource("LabelSettings_81dm8")
+
+[node name="ConnectionControls" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/ConnectionControls"]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_top = -54.5
+offset_bottom = 54.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 300
+theme_override_constants/margin_right = 300
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ConnectionControls/MarginContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="HostID" type="LineEdit" parent="UI/ConnectionControls/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Join" type="Button" parent="UI/ConnectionControls/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Join Game"
+
+[node name="HSeparator" type="HSeparator" parent="UI/ConnectionControls/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Host" type="Button" parent="UI/ConnectionControls/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Host Game"
+
+[node name="HUD" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="RoomId" type="Label" parent="UI/HUD/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Room ID:"
+
+[node name="ConnectedPeers" type="Label" parent="UI/HUD/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Connected Peers: 0"
+
+[node name="AppId" type="Label" parent="UI/HUD/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "App ID:"
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("uid://18tdvkep7yx6")
+spawn_path = NodePath("..")
+script = ExtResource("2_81dm8")
+player_scene = ExtResource("3_e3iq8")
+
+[connection signal="pressed" from="UI/ConnectionControls/MarginContainer/VBoxContainer/Join" to="." method="_on_join_pressed"]
+[connection signal="pressed" from="UI/ConnectionControls/MarginContainer/VBoxContainer/Host" to="." method="_on_host_pressed"]
