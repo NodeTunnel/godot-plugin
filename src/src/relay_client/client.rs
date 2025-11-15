@@ -4,8 +4,8 @@ use crate::transport::renet::RenetTransport;
 use crate::transport::types::{Channel, Packet};
 use godot::global::godot_print;
 use std::cmp::PartialEq;
-use std::error::Error;
 use std::time::Duration;
+use crate::relay_client::error::RelayClientError;
 
 #[derive(Debug, PartialEq)]
 enum ClientState {
@@ -34,9 +34,12 @@ impl RelayClient {
         self.transport = Some(transport);
     }
 
-    pub fn update(&mut self) -> Result<Vec<RelayEvent>, Box<dyn Error>> {
+    pub fn update(&mut self) -> Result<Vec<RelayEvent>, RelayClientError> {
         let delta = Duration::from_nanos(self.last_update.subsec_nanos() as u64);
-        let transport = self.transport.as_mut().ok_or("Transport not initialized")?;
+        let transport = self.transport.as_mut().ok_or(
+            RelayClientError::TransportNotInitialized
+        )?;
+
         transport.update(delta)?;
 
         let mut events = vec![];
@@ -47,7 +50,8 @@ impl RelayClient {
         }
 
         for packet in packets {
-            events.extend(self.handle_packet(packet));
+            let event = self.handle_packet(packet)?;
+            events.extend(event);
         }
 
         Ok(events)
@@ -62,7 +66,7 @@ impl RelayClient {
         None
     }
 
-    fn handle_packet(&mut self, packet: Packet) -> Vec<RelayEvent> {
+    fn handle_packet(&mut self, packet: Packet) -> Result<Vec<RelayEvent>, RelayClientError> {
         let mut events = vec![];
 
         if let Ok(packet_type) = PacketType::from_bytes(&packet.data) {
@@ -85,61 +89,78 @@ impl RelayClient {
                 PacketType::Error { error_code, error_message } =>
                     events.push(RelayEvent::Error { error_code, error_message }),
                 _ => {
-                    // TODO: unexpected packet type error
+                    return Err(RelayClientError::InvalidPacketType);
                 }
             }
         } else {
-            // TODO: invalid packet type error
+            return Err(RelayClientError::PacketParsingError);
         }
 
-        events
+        Ok(events)
     }
 
-    pub fn req_auth(&mut self, app_id: String) {
+    pub fn req_auth(&mut self, app_id: String) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::Authenticate {
                 app_id,
             },
             Channel::Reliable
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub fn req_create_room(&mut self) {
+    pub fn req_create_room(&mut self) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::CreateRoom,
             Channel::Reliable
-        )
+        )?;
+
+        Ok(())
     }
 
-    pub fn req_join_room(&mut self, room_id: String) {
+    pub fn req_join_room(&mut self, room_id: String) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::JoinRoom { room_id },
             Channel::Reliable
-        );
+        )?;
+
+        Ok(())
     }
 
-    pub fn send_game_data(&mut self, peer_id: i32, data: Vec<u8>, channel: Channel) {
+    pub fn send_game_data(&mut self, peer_id: i32, data: Vec<u8>, channel: Channel) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::GameData { from_peer: peer_id, data },
             channel
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn is_connected(&self) -> bool {
         self.transport.as_ref().map_or(false, |transport| transport.is_connected())
     }
 
-    pub fn disconnect(&mut self) {
-        let transport = self.transport.as_mut().ok_or("Transport not initialized").unwrap();
+    pub fn disconnect(&mut self) -> Result<(), RelayClientError> {
+        let transport = self.transport.as_mut().ok_or(
+            RelayClientError::TransportNotInitialized
+        )?;
+
         transport.disconnect_from_server();
+
+        Ok(())
     }
 
-    fn send_packet(&mut self, packet_type: PacketType, channel: Channel) {
-        let transport = self.transport.as_mut().ok_or("Transport not initialized").unwrap();
+    fn send_packet(&mut self, packet_type: PacketType, channel: Channel) -> Result<(), RelayClientError> {
+        let transport = self.transport.as_mut().ok_or(
+            RelayClientError::TransportNotInitialized
+        )?;
 
         transport.send_to_server(
             packet_type.to_bytes(),
             channel,
-        )
+        )?;
+
+        Ok(())
     }
 }

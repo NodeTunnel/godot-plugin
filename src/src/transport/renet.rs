@@ -13,8 +13,10 @@ pub struct RenetTransport {
 
 impl RenetTransport {
     pub fn new(server_addr: SocketAddr) -> Result<Self, TransportError> {
-        let socket = UdpSocket::bind("0.0.0.0:0")?;
-        socket.set_nonblocking(true)?;
+        let socket = UdpSocket::bind("0.0.0.0:0")
+            .map_err(TransportError::BindFailed)?;
+        socket.set_nonblocking(true)
+            .map_err(TransportError::SetNonBlockingFailed)?;
 
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
         let client_id = current_time.as_millis() as u64;

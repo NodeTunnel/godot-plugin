@@ -1,3 +1,3 @@
 pub mod renet;
 pub mod types;
-mod error;
+pub mod error;
