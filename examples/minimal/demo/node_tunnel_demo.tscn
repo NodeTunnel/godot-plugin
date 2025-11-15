@@ -110,5 +110,6 @@ spawn_path = NodePath("..")
 script = ExtResource("2_81dm8")
 player_scene = ExtResource("3_e3iq8")
 
+[connection signal="connected_to_room" from="." to="MultiplayerSpawner" method="_on_node_tunnel_demo_connected_to_room"]
 [connection signal="pressed" from="UI/ConnectionControls/MarginContainer/VBoxContainer/Join" to="." method="_on_join_pressed"]
 [connection signal="pressed" from="UI/ConnectionControls/MarginContainer/VBoxContainer/Host" to="." method="_on_host_pressed"]

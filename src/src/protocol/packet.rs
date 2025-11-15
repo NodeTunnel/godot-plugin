@@ -1,6 +1,7 @@
 use crate::protocol::ids::*;
 use std::error::Error;
 use godot::prelude::godot_print;
+use crate::protocol::error::ProtocolError;
 use crate::protocol::serialize::{push_i32, push_string, read_i32, read_string};
 
 #[derive(Debug, Clone)]
@@ -18,9 +19,9 @@ pub enum PacketType {
 }
 
 impl PacketType {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ProtocolError> {
         if bytes.is_empty() {
-            return Err("Empty packet".into());
+            return Err(ProtocolError::EmptyPacket);
         }
 
         let packet_id = bytes[0];
@@ -73,7 +74,7 @@ impl PacketType {
                 PacketType::Error { error_code, error_message }
             }
 
-            _ => return Err(format!("Unknown packet type: {}", packet_id).into())
+            _ => return Err(ProtocolError::UnknownPacketType(packet_id))
         })
     }
 

@@ -1,5 +1,7 @@
 extends Node2D
 
+signal connected_to_room
+
 const RELAY_ADDRESS = "127.0.0.1:8080"
 const APP_ID = "nodetunnel_demo"
 
@@ -34,6 +36,8 @@ func _ready() -> void:
 			DisplayServer.clipboard_set(room_id)
 			
 			$UI/HUD.show()
+			
+			connected_to_room.emit()
 	)
 	
 	## this signal fires when the client is forcibly disconnected from the relay server
