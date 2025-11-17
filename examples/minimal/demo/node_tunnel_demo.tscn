@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://f23eh00fbej4"]
+[gd_scene load_steps=6 format=3 uid="uid://f23eh00fbej4"]
 
 [ext_resource type="Script" uid="uid://7oy3c8wr1bcw" path="res://demo/node_tunnel_demo.gd" id="1_nk7jj"]
 [ext_resource type="Script" uid="uid://dfdj6tvhagfqf" path="res://demo/player_spawner.gd" id="2_81dm8"]
 [ext_resource type="PackedScene" uid="uid://18tdvkep7yx6" path="res://demo/player.tscn" id="3_e3iq8"]
+[ext_resource type="Script" uid="uid://cid2yv10wgm4t" path="res://demo/response_time.gd" id="4_dkqyi"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_81dm8"]
 font_size = 32
@@ -109,6 +110,9 @@ _spawnable_scenes = PackedStringArray("uid://18tdvkep7yx6")
 spawn_path = NodePath("..")
 script = ExtResource("2_81dm8")
 player_scene = ExtResource("3_e3iq8")
+
+[node name="ResponseTime" type="Node" parent="."]
+script = ExtResource("4_dkqyi")
 
 [connection signal="connected_to_room" from="." to="MultiplayerSpawner" method="_on_node_tunnel_demo_connected_to_room"]
 [connection signal="pressed" from="UI/ConnectionControls/MarginContainer/VBoxContainer/Join" to="." method="_on_join_pressed"]

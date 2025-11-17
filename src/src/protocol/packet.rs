@@ -1,12 +1,11 @@
 use crate::protocol::ids::*;
-use std::error::Error;
 use godot::prelude::godot_print;
 use crate::protocol::error::ProtocolError;
 use crate::protocol::serialize::{push_i32, push_string, read_i32, read_string};
 
 #[derive(Debug, Clone)]
 pub enum PacketType {
-    Authenticate { app_id: String },
+    Authenticate { app_id: String, version: String },
     ClientAuthenticated,
     CreateRoom,
     JoinRoom { room_id: String },
@@ -29,8 +28,9 @@ impl PacketType {
 
         Ok(match packet_id {
             AUTHENTICATE => {
-                let (app_id, _) = read_string(rest)?;
-                PacketType::Authenticate { app_id }
+                let (app_id, r) = read_string(rest)?;
+                let (version, _) = read_string(r)?;
+                PacketType::Authenticate { app_id, version }
             }
 
             CLIENT_AUTHENTICATED => PacketType::ClientAuthenticated,
@@ -82,9 +82,10 @@ impl PacketType {
         let mut buf = Vec::new();
 
         match self {
-            PacketType::Authenticate { app_id } => {
+            PacketType::Authenticate { app_id, version } => {
                 buf.push(AUTHENTICATE);
                 push_string(&mut buf, app_id);
+                push_string(&mut buf, version);
             }
 
             PacketType::ClientAuthenticated => {
