@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://befpcmgvips7e"]
+
+[ext_resource type="Script" uid="uid://cid2yv10wgm4t" path="res://demo/response_time.gd" id="1_1bonr"]
+
+[node name="ResponseTime" type="Node"]
+script = ExtResource("1_1bonr")

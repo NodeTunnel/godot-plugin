@@ -1,12 +1,12 @@
 use crate::protocol::packet::PacketType;
 use crate::relay_client::events::RelayEvent;
-use crate::transport::renet::RenetTransport;
-use crate::transport::types::{Channel, Packet};
-use godot::global::godot_print;
+use godot::global::{godot_print, godot_warn};
 use std::cmp::PartialEq;
 use std::time::Duration;
 use crate::protocol::version;
 use crate::relay_client::error::RelayClientError;
+use crate::transport::client::{ClientEvent, ClientTransport};
+use crate::transport::common::{Channel, Packet};
 
 #[derive(Debug, PartialEq)]
 enum ClientState {
@@ -16,7 +16,7 @@ enum ClientState {
 }
 
 pub struct RelayClient {
-    transport: Option<RenetTransport>,
+    transport: Option<ClientTransport>,
     client_state: ClientState,
     last_update: Duration,
 }
@@ -30,32 +30,32 @@ impl RelayClient {
         }
     }
 
-    pub fn connect(&mut self, transport: RenetTransport) {
+    pub fn connect(&mut self, transport: ClientTransport) {
         self.client_state = ClientState::Connecting;
         self.transport = Some(transport);
     }
 
     pub fn update(&mut self) -> Result<Vec<RelayEvent>, RelayClientError> {
-        let delta = Duration::from_nanos(self.last_update.subsec_nanos() as u64);
         let transport = self.transport.as_mut().ok_or(
             RelayClientError::TransportNotInitialized
         )?;
 
-        transport.update(delta)?;
+        let events = transport.recv_packets();
 
-        let mut events = vec![];
-        let packets = transport.recv_packets();
+        let mut relay_events = vec![];
 
         if let Some(event) = self.update_state() {
-            events.push(event);
+            relay_events.push(event);
         }
 
-        for packet in packets {
-            let event = self.handle_packet(packet)?;
-            events.extend(event);
+        for event in events {
+            if let ClientEvent::PacketReceived { data, channel } = event {
+                let packet_events = self.handle_packet(data, channel)?;
+                relay_events.extend(packet_events);
+            }
         }
 
-        Ok(events)
+        Ok(relay_events)
     }
 
     fn update_state(&mut self) -> Option<RelayEvent> {
@@ -67,24 +67,25 @@ impl RelayClient {
         None
     }
 
-    fn handle_packet(&mut self, packet: Packet) -> Result<Vec<RelayEvent>, RelayClientError> {
+    fn handle_packet(&mut self, data: Vec<u8>, channel: Channel) -> Result<Vec<RelayEvent>, RelayClientError> {
         let mut events = vec![];
 
-        if let Ok(packet_type) = PacketType::from_bytes(&packet.data) {
+        if let Ok(packet_type) = PacketType::from_bytes(&data) {
             match packet_type {
                 PacketType::ClientAuthenticated => {
                     godot_print!("Client authenticated");
                     self.client_state = ClientState::Authenticated;
                     events.push(RelayEvent::Authenticated);
                 }
-                PacketType::ConnectedToRoom { room_id, peer_id } =>
-                    events.push(RelayEvent::RoomJoined { room_id, peer_id }),
+                PacketType::ConnectedToRoom { room_id, peer_id, existing_peers } =>
+                    events.push(RelayEvent::RoomJoined { room_id, peer_id, existing_peers }),
                 PacketType::PeerJoinedRoom { peer_id } =>
                     events.push(RelayEvent::PeerJoinedRoom { peer_id }),
                 PacketType::PeerLeftRoom { peer_id } =>
                     events.push(RelayEvent::PeerLeftRoom { peer_id }),
-                PacketType::GameData { from_peer, data } =>
-                    events.push(RelayEvent::GameDataReceived { data, from_peer, channel: packet.channel }),
+                PacketType::GameData { from_peer, data } => {
+                    events.push(RelayEvent::GameDataReceived { data, from_peer, channel });
+                }
                 PacketType::ForceDisconnect =>
                     events.push(RelayEvent::ForceDisconnect),
                 PacketType::Error { error_code, error_message } =>
@@ -130,11 +131,22 @@ impl RelayClient {
         Ok(())
     }
 
+    pub fn send_ready(&mut self) -> Result<(), RelayClientError> {
+        self.send_packet(
+            PacketType::PeerReady,
+            Channel::Reliable
+        )?;
+
+        Ok(())
+    }
+
     pub fn send_game_data(&mut self, peer_id: i32, data: Vec<u8>, channel: Channel) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::GameData { from_peer: peer_id, data },
             channel
         )?;
+
+        self.update()?;
 
         Ok(())
     }
@@ -148,8 +160,6 @@ impl RelayClient {
             RelayClientError::TransportNotInitialized
         )?;
 
-        transport.disconnect_from_server();
-
         Ok(())
     }
 
@@ -158,10 +168,10 @@ impl RelayClient {
             RelayClientError::TransportNotInitialized
         )?;
 
-        transport.send_to_server(
+        transport.send(
             packet_type.to_bytes(),
             channel,
-        )?;
+        ).expect("TODO: panic message");
 
         Ok(())
     }

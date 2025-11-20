@@ -8,7 +8,8 @@ use godot::global::{godot_error, godot_print, godot_warn, Error};
 use godot::obj::{Base, WithUserSignals};
 use crate::relay_client::client::RelayClient;
 use crate::relay_client::events::RelayEvent;
-use crate::transport::renet::RenetTransport;
+use crate::transport::client::ClientTransport;
+use crate::transport::common::Channel;
 
 struct GamePacket {
     from_peer: i32,
@@ -26,6 +27,9 @@ struct NodeTunnelPeer {
     transfer_mode: TransferMode,
     incoming_packets: Vec<GamePacket>,
     relay_client: RelayClient,
+    pending_ready: bool,
+    ready_frame_counter: i32,
+    outgoing_queue: Vec<(i32, Vec<u8>, Channel)>,
     base: Base<MultiplayerPeerExtension>
 }
 
@@ -57,7 +61,7 @@ impl NodeTunnelPeer {
             }
         };
 
-        let transport = match RenetTransport::new(socket_addr) {
+        let transport = match ClientTransport::new(socket_addr) {
             Ok(t) => t,
             Err(e) => {
                 godot_error!("[NodeTunnel] Failed to create transport: {}", e);
@@ -110,19 +114,24 @@ impl NodeTunnelPeer {
                 self.connection_status = ConnectionStatus::CONNECTED;
                 self.signals().authenticated().emit();
             }
-            RelayEvent::RoomJoined { room_id, peer_id } => {
+            RelayEvent::RoomJoined { room_id, peer_id, existing_peers } => {
                 self.unique_id = peer_id;
 
-                if !self.is_server() {
-                    self.signals().peer_connected().emit(1);
+                for peer in existing_peers {
+                    self.signals().peer_connected().emit(peer as i64);
                 }
 
                 self.signals().room_connected().emit(room_id);
+
+                if !self.is_server() {
+                    self.pending_ready = true;
+                    self.ready_frame_counter = 1;
+                }
+
+                godot_warn!("[NodeTunnel] Connected to room");
             },
             RelayEvent::PeerJoinedRoom { peer_id } => {
-                if self.is_server() {
-                    self.signals().peer_connected().emit(peer_id as i64);
-                }
+                self.signals().peer_connected().emit(peer_id as i64);
             },
             RelayEvent::PeerLeftRoom { peer_id } => {
                 if self.is_server() {
@@ -130,15 +139,22 @@ impl NodeTunnelPeer {
                 }
             },
             RelayEvent::GameDataReceived { channel, from_peer, data } => {
+                let transfer_mode = match channel {
+                    Channel::Reliable => TransferMode::RELIABLE,
+                    Channel::Unreliable => TransferMode::UNRELIABLE,
+                };
+
                 self.incoming_packets.push(GamePacket {
-                    transfer_mode: channel.into(),
+                    transfer_mode,
                     from_peer,
                     data
-                })
+                });
             },
             RelayEvent::ForceDisconnect => {
-                godot_print!("[NodeTunnel] Client was forcibly disconnected from relay");
-                self.close();
+                if self.connection_status == ConnectionStatus::CONNECTED {
+                    godot_print!("[NodeTunnel] Client was forcibly disconnected from relay");
+                    self.close();
+                }
             },
             RelayEvent::Error { error_code, error_message } => {
                 godot_error!("[NodeTunnel] Relay error {}: {}", error_code, error_message);
@@ -159,12 +175,16 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
             transfer_mode: TransferMode::UNRELIABLE,
             incoming_packets: vec![],
             relay_client: RelayClient::new(),
+            pending_ready: false,
+            ready_frame_counter: 0,
+            outgoing_queue: vec![],
             base,
         }
     }
 
     fn get_available_packet_count(&self) -> i32 {
-        self.incoming_packets.len() as i32
+        let count = self.incoming_packets.len() as i32;
+        count
     }
 
     fn get_max_packet_size(&self) -> i32 {
@@ -183,13 +203,16 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn put_packet_script(&mut self, p_buffer: PackedByteArray) -> Error {
         let data: Vec<u8> = p_buffer.to_vec();
 
-        match self.relay_client.send_game_data(self.target_peer, data, self.transfer_mode.into()) {
-            Ok(_) => Error::OK,
-            Err(e) => {
-                godot_error!("[NodeTunnel] Failed to send game data: {}", e);
-                Error::ERR_CONNECTION_ERROR
-            }
-        }
+        let channel = match self.transfer_mode {
+            TransferMode::RELIABLE => {
+                Channel::Reliable
+            },
+            _ => Channel::Unreliable,
+        };
+
+        self.outgoing_queue.push((self.target_peer, data, channel));
+
+        Error::OK
     }
 
     fn get_packet_channel(&self) -> i32 {
@@ -245,9 +268,38 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
                 godot_error!("[NodeTunnel] Relay error: {}", e);
             }
         }
+
+        for (peer, data, channel) in self.outgoing_queue.drain(..) {
+            match self.relay_client.send_game_data(peer, data, channel) {
+                Ok(_) => {},
+                Err(e) => {
+                    godot_error!("[NodeTunnel] Failed to send game data: {}", e);
+                }
+            }
+        }
+
+        if self.pending_ready {
+            self.ready_frame_counter -= 1;
+            if self.ready_frame_counter <= 0 {
+                self.pending_ready = false;
+
+                match self.relay_client.send_ready() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        godot_error!("Failed to alert other peers of presence: {}", e);
+                        self.close();
+                    }
+                }
+            }
+        }
     }
 
     fn close(&mut self) {
+        if self.connection_status == ConnectionStatus::DISCONNECTED || !self.relay_client.is_connected() {
+            godot_warn!("[NodeTunnel] Attempted to close connection while disconnected");
+            return;
+        }
+
         self.unique_id = 0;
         self.connection_status = ConnectionStatus::DISCONNECTED;
 
@@ -266,7 +318,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     }
 
     fn is_server_relay_supported(&self) -> bool {
-        true
+        false
     }
 
     fn get_connection_status(&self) -> ConnectionStatus {
