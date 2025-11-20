@@ -12,6 +12,7 @@ func _ready() -> void:
 	## hosted the room or joined it.
 	peer.room_connected.connect(
 		func(room_id):
+			push_warning("Connected to room!")
 			%RoomId.text = room_id
 			%AppId.text = APP_ID
 			DisplayServer.clipboard_set(room_id)
@@ -42,7 +43,7 @@ func _ready() -> void:
 	## normal high-level multiplayer API from here on out!
 	multiplayer.peer_connected.connect(
 		func(pid):
-			print("Peer ", pid, " joined the room!")
+			print("Peer ", pid, " has joined!")
 			%ConnectedPeers.text = "Connected Peers: " + str(multiplayer.get_peers().size())
 	)
 	
@@ -76,3 +77,19 @@ func _on_join_pressed() -> void:
 	## can result in an error, which should be handled by the relay_error signal
 	peer.join_room(%HostID.text)
 	$UI/ConnectionControls.hide()
+
+func _on_disconnect_pressed() -> void:
+	## close the connection
+	peer.close()
+
+func _exit_tree() -> void:
+	## close the connection
+	peer.close()
+
+func _process(delta: float) -> void:
+	if Input.is_action_just_pressed("ui_accept"):
+		hello_world.rpc()
+
+@rpc("any_peer")
+func hello_world():
+	print("Hello world!")

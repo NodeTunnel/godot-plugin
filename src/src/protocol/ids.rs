@@ -8,3 +8,4 @@ pub const PEER_LEFT: u8 = 6;
 pub const GAME_DATA: u8 = 7;
 pub const FORCE_DISCONNECT: u8 = 8;
 pub const ERROR_PACKET: u8 = 9;
+pub const PEER_READY: u8 = 10;

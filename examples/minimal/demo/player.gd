@@ -8,4 +8,4 @@ func _process(delta: float) -> void:
 		return
 	
 	if Input.is_action_pressed("ui_right"):
-		global_position.x += 100 * delta
+		global_position.x += 300 * delta

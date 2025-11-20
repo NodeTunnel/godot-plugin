@@ -1,19 +1,16 @@
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error)]
 pub enum TransportError {
-    #[error("Failed to bind socket. Error: {0}")]
-    BindFailed(std::io::Error),
+    #[error("Failed to bind UDP socket: {0}")]
+    BindError(std::io::Error),
 
-    #[error("Failed to set socket nonblocking. Error: {0}")]
-    SetNonBlockingFailed(std::io::Error),
-
-    #[error("System clock error (clock before Unix epoch?): {0}")]
+    #[error("Clock may have gone backwards: {0}")]
     ClockError(#[from] std::time::SystemTimeError),
 
-    #[error("Netcode error: {0:?}")]
-    NetcodeError(#[from] renet_netcode::NetcodeError),
+    #[error("Failed to create Netcode server transport: {0}")]
+    NetcodeCreationFailed(std::io::Error),
 
-    #[error("Netcode Transport error: {0:?}")]
-    NetcodeTransportError(#[from] renet_netcode::NetcodeTransportError),
+    #[error("Failed to update Netcode server transport: {0}")]
+    NetcodeUpdateFailed(renet_netcode::NetcodeTransportError),
 }
