@@ -35,10 +35,16 @@ impl RelayClient {
         self.transport = Some(transport);
     }
 
-    pub fn update(&mut self) -> Result<Vec<RelayEvent>, RelayClientError> {
+    pub fn update(&mut self, delta: Duration) -> Result<Vec<RelayEvent>, RelayClientError> {
         let transport = self.transport.as_mut().ok_or(
             RelayClientError::TransportNotInitialized
         )?;
+
+        self.last_update += delta;
+        if self.last_update >= Duration::from_secs(5) {
+            transport.send_keepalive().expect("TODO: panic message");
+            self.last_update = Duration::ZERO;
+        }
 
         let events = transport.recv_packets();
 
@@ -145,8 +151,6 @@ impl RelayClient {
             PacketType::GameData { from_peer: peer_id, data },
             channel
         )?;
-
-        self.update()?;
 
         Ok(())
     }

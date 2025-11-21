@@ -1,5 +1,6 @@
 use std::net::{SocketAddr};
 use std::str::FromStr;
+use std::time::{Duration, Instant};
 use godot::builtin::PackedByteArray;
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
@@ -30,6 +31,7 @@ struct NodeTunnelPeer {
     pending_ready: bool,
     ready_frame_counter: i32,
     outgoing_queue: Vec<(i32, Vec<u8>, Channel)>,
+    last_poll_time: Option<Instant>,
     base: Base<MultiplayerPeerExtension>
 }
 
@@ -134,9 +136,8 @@ impl NodeTunnelPeer {
                 self.signals().peer_connected().emit(peer_id as i64);
             },
             RelayEvent::PeerLeftRoom { peer_id } => {
-                if self.is_server() {
-                    self.signals().peer_disconnected().emit(peer_id as i64);
-                }
+                godot_print!("Peer left room");
+                self.signals().peer_disconnected().emit(peer_id as i64);
             },
             RelayEvent::GameDataReceived { channel, from_peer, data } => {
                 let transfer_mode = match channel {
@@ -178,6 +179,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
             pending_ready: false,
             ready_frame_counter: 0,
             outgoing_queue: vec![],
+            last_poll_time: None,
             base,
         }
     }
@@ -258,7 +260,14 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     }
 
     fn poll(&mut self) {
-        match self.relay_client.update() {
+        let now = Instant::now();
+        let delta = match self.last_poll_time {
+            Some(last) => now.duration_since(last),
+            None => Duration::ZERO,
+        };
+        self.last_poll_time = Some(now);
+
+        match self.relay_client.update(delta) {
             Ok(events) => {
                 for event in events {
                     self.handle_relay_event(event)

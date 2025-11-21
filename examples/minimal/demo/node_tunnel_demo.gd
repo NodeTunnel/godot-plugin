@@ -2,12 +2,25 @@ extends Node2D
 
 signal connected_to_room
 
-const RELAY_ADDRESS = "127.0.0.1:8080"
+var relay_addr = "127.0.0.1:8080"
+
+## get this either from nodetunnel's website
+## or if you're self hosting, pick any app id and put it in the
+## server's config.toml.
 const APP_ID = "c1xz9woxf6bi42m"
 
 @onready var peer := NodeTunnelPeer.new()
 
 func _ready() -> void:
+	## OPTIONAL: in the event that multiple relays are available, nodetunnel provides
+	## a service to pick the closest (least ms) one. Note that connecting peers must also
+	## be on the same relay server as the host.
+	#var discover = RelayDiscovery.new("http://127.0.0.1:8090")
+	#add_child(discover)
+	#print(await discover.find_best_relay(APP_ID))
+	
+	peer.connect_to_relay(relay_addr, APP_ID)
+	
 	## this signal fires once the client has successfully been added to a room, whether they
 	## hosted the room or joined it.
 	peer.room_connected.connect(
@@ -53,7 +66,7 @@ func _ready() -> void:
 	
 	## connect_to_relay will need to be called regardless of whether we are hosting or joining, 
 	## so putting it in _ready is fine.
-	peer.connect_to_relay(RELAY_ADDRESS, APP_ID)
+	peer.connect_to_relay(relay_addr, APP_ID)
 	## make sure to set the scene's multiplayer peer, or else NodeTunnel will never connect.
 	multiplayer.multiplayer_peer = peer
 	
@@ -90,6 +103,6 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("ui_accept"):
 		hello_world.rpc()
 
-@rpc("any_peer")
+@rpc("any_peer", "reliable")
 func hello_world():
 	print("Hello world!")

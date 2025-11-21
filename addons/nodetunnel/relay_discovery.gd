@@ -1,5 +1,5 @@
 class_name RelayDiscovery
-extends RefCounted
+extends Node
 
 var registry_url: String
 var _http_requests: Array[HTTPRequest] = []
@@ -8,8 +8,8 @@ func _init(url: String):
 	registry_url = url.trim_suffix("/")
 
 # Find the best relay by latency
-func find_best_relay() -> Dictionary:
-	var relays = await _fetch_relays()
+func find_best_relay(app_id: String) -> Dictionary:
+	var relays = await _fetch_relays(app_id)
 	if relays.is_empty():
 		return {}
 	
@@ -27,7 +27,7 @@ func find_best_relay() -> Dictionary:
 # Find which relay hosts a specific room
 func find_room(room_id: String) -> Dictionary:
 	var http = HTTPRequest.new()
-	Engine.get_main_loop().root.add_child(http)
+	add_child(http)
 	
 	var url = "%s/api/collections/rooms/records?filter=(room_id='%s')" % [registry_url, room_id]
 	var err = http.request(url)
@@ -60,11 +60,12 @@ func find_room(room_id: String) -> Dictionary:
 	
 	return {}
 
-func _fetch_relays() -> Array:
+func _fetch_relays(app_id: String) -> Array:
 	var http = HTTPRequest.new()
-	Engine.get_main_loop().root.add_child(http)
+	add_child(http)
 	
-	var url = "%s/api/collections/relays/records" % registry_url
+	var url = "%s/api/collections/relays/records?filter=(allowed_apps~'%s')" % [registry_url, app_id]
+	print("URL: ", url)
 	var err = http.request(url)
 	if err != OK:
 		http.queue_free()
@@ -76,11 +77,9 @@ func _fetch_relays() -> Array:
 	var response_code = result[1]
 	var body = result[3]
 	
-	if response_code != 200:
-		return []
-	
 	var json = JSON.parse_string(body.get_string_from_utf8())
 	if json == null or not json.has("items"):
+		print("Failed to fetch relays: ", json.message)
 		return []
 	
 	return json.items
@@ -121,6 +120,7 @@ func _ping_relay(health_url: String) -> float:
 	
 	var response_code = result[1]
 	if response_code != 200:
+		print("Failed to ping relay: ", health_url)
 		return INF
 	
 	return Time.get_ticks_msec() - start_time

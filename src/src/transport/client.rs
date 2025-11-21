@@ -42,13 +42,11 @@ impl ClientTransport {
         let mut buf = [0u8; 65535];
         let now = Instant::now();
 
-        // Check resends
         if now.duration_since(self.last_resend_check) > Duration::from_millis(50) {
             self.do_resends();
             self.last_resend_check = now;
         }
 
-        // Check ACKs
         if now.duration_since(self.last_ack_send) > Duration::from_millis(10) {
             self.send_acks().ok();
             self.last_ack_send = now;
@@ -70,13 +68,11 @@ impl ClientTransport {
                             let mut receiver = self.reliable_receiver.lock().unwrap();
                             let acks = receiver.receive(SequenceNumber::new(seq), data);
 
-                            // Queue acks
                             let mut sender = self.reliable_sender.lock().unwrap();
                             for ack in acks {
                                 sender.queue_ack(ack);
                             }
 
-                            // Extract received packets
                             let packets = receiver.take_all_packets();
                             for packet in packets {
                                 self.pending_events.push(ClientEvent::PacketReceived {
@@ -151,6 +147,12 @@ impl ClientTransport {
 
             let _ = self.socket.send_to(&packet, self.server_addr);
         }
+    }
+
+    pub fn send_keepalive(&self) -> Result<(), std::io::Error> {
+        let packet = vec![3u8];
+        self.socket.send_to(&packet, self.server_addr)?;
+        Ok(())
     }
 
     pub(crate) fn is_connected(&self) -> bool {
