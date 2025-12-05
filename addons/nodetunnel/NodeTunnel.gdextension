@@ -4,11 +4,11 @@ compatibility_minimum = 4.1
 reloadable = false
 
 [libraries]
-linux.debug.x86_64 =     "res://addons/nodetunnel/bin/libnodetunnel.so"
-linux.release.x86_64 =   "res://addons/nodetunnel/bin/libnodetunnel.so"
-windows.debug.x86_64 =   "res://addons/nodetunnel/bin/nodetunnel.dll"
-windows.release.x86_64 = "res://addons/nodetunnel/bin/nodetunnel.dll"
-macos.debug =            "res://addons/nodetunnel/bin/libnodetunnel.dylib"
-macos.release =          "res://addons/nodetunnel/bin/libnodetunnel.dylib"
-macos.debug.arm64 =      "res://addons/nodetunnel/bin/libnodetunnel.dylib"
-macos.release.arm64 =    "res://addons/nodetunnel/bin/libnodetunnel.dylib"
+linux.debug.x86_64 =     "bin/libnodetunnel.so"
+linux.release.x86_64 =   "bin/libnodetunnel.so"
+windows.debug.x86_64 =   "bin/nodetunnel.dll"
+windows.release.x86_64 = "bin/nodetunnel.dll"
+macos.debug =            "bin/libnodetunnel.dylib"
+macos.release =          "bin/libnodetunnel.dylib"
+macos.debug.arm64 =      "bin/libnodetunnel.dylib"
+macos.release.arm64 =    "bin/libnodetunnel.dylib"
