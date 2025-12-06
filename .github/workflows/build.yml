@@ -10,7 +10,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -25,7 +25,7 @@ jobs:
         run: cargo build --release --target x86_64-unknown-linux-gnu
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-binary
           path: target/x86_64-unknown-linux-gnu/release/libnodetunnel.so
@@ -33,7 +33,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -43,7 +43,7 @@ jobs:
         run: cargo build --release --target x86_64-pc-windows-msvc
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-binary
           path: target/x86_64-pc-windows-msvc/release/nodetunnel.dll
@@ -51,7 +51,7 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -71,7 +71,7 @@ jobs:
             -output libnodetunnel.dylib
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-binary
           path: libnodetunnel.dylib
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       
       - name: Create plugin structure
         run: |
@@ -91,19 +91,19 @@ jobs:
           cp -r godot/scripts/* addons/nodetunnel/ 2>/dev/null || true
       
       - name: Download Linux binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v6
         with:
           name: linux-binary
           path: addons/nodetunnel/bin/
       
       - name: Download Windows binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v6
         with:
           name: windows-binary
           path: addons/nodetunnel/bin/
       
       - name: Download macOS binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v6
         with:
           name: macos-binary
           path: addons/nodetunnel/bin/
