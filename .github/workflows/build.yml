@@ -23,12 +23,13 @@ jobs:
       
       - name: Build Linux
         run: cargo build --release --target x86_64-unknown-linux-gnu
+        working-directory: src
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-binary
-          path: target/x86_64-unknown-linux-gnu/release/libnodetunnel.so
+          path: src/target/x86_64-unknown-linux-gnu/release/libnodetunnel.so
 
   build-windows:
     runs-on: windows-latest
@@ -41,12 +42,13 @@ jobs:
       
       - name: Build Windows
         run: cargo build --release --target x86_64-pc-windows-msvc
+        working-directory: src
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-binary
-          path: target/x86_64-pc-windows-msvc/release/nodetunnel.dll
+          path: src/target/x86_64-pc-windows-msvc/release/nodetunnel.dll
 
   build-macos:
     runs-on: macos-latest
@@ -59,9 +61,11 @@ jobs:
       
       - name: Build macOS x86_64
         run: cargo build --release --target x86_64-apple-darwin
+        working-directory: src
       
       - name: Build macOS ARM64
         run: cargo build --release --target aarch64-apple-darwin
+        working-directory: src
       
       - name: Create Universal Binary
         run: |
@@ -69,12 +73,13 @@ jobs:
             target/x86_64-apple-darwin/release/libnodetunnel.dylib \
             target/aarch64-apple-darwin/release/libnodetunnel.dylib \
             -output libnodetunnel.dylib
+        working-directory: src
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-binary
-          path: libnodetunnel.dylib
+          path: src/libnodetunnel.dylib
 
   package:
     needs: [build-linux, build-windows, build-macos]
@@ -86,9 +91,7 @@ jobs:
       - name: Create plugin structure
         run: |
           mkdir -p addons/nodetunnel/bin
-          cp godot/nodetunnel.gdextension addons/nodetunnel/
-          cp godot/plugin.cfg addons/nodetunnel/
-          cp -r godot/scripts/* addons/nodetunnel/ 2>/dev/null || true
+          rm -f addons/nodetunnel/bin/*
       
       - name: Download Linux binary
         uses: actions/download-artifact@v4
