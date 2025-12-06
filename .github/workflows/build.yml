@@ -115,6 +115,14 @@ jobs:
         run: |
           zip -r nodetunnel-plugin.zip addons/
           tar -czf nodetunnel-plugin.tar.gz addons/
+
+      - name: Upload packaged artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodetunnel-plugin
+          path: |
+            nodetunnel-plugin.zip
+            nodetunnel-plugin.tar.gz
       
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
