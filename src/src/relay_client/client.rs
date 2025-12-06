@@ -1,6 +1,5 @@
 use crate::protocol::packet::PacketType;
 use crate::relay_client::events::RelayEvent;
-use godot::global::{godot_print};
 use std::cmp::PartialEq;
 use std::time::Duration;
 use crate::protocol::version;
@@ -112,7 +111,7 @@ impl RelayClient {
         self.send_packet(
             PacketType::Authenticate {
                 app_id,
-                version: version::CLIENT_VERSION.to_string()
+                version: version::PROTOCOL_VERSION.to_string()
             },
             Channel::Reliable
         )?;

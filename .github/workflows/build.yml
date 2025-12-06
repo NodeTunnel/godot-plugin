@@ -1,0 +1,122 @@
+name: Build NodeTunnel Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+      
+      - name: Build Linux
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-binary
+          path: target/x86_64-unknown-linux-gnu/release/libnodetunnel.so
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      
+      - name: Build Windows
+        run: cargo build --release --target x86_64-pc-windows-msvc
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-binary
+          path: target/x86_64-pc-windows-msvc/release/nodetunnel.dll
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+      
+      - name: Build macOS x86_64
+        run: cargo build --release --target x86_64-apple-darwin
+      
+      - name: Build macOS ARM64
+        run: cargo build --release --target aarch64-apple-darwin
+      
+      - name: Create Universal Binary
+        run: |
+          lipo -create \
+            target/x86_64-apple-darwin/release/libnodetunnel.dylib \
+            target/aarch64-apple-darwin/release/libnodetunnel.dylib \
+            -output libnodetunnel.dylib
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-binary
+          path: libnodetunnel.dylib
+
+  package:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create plugin structure
+        run: |
+          mkdir -p addons/nodetunnel/bin
+          cp godot/nodetunnel.gdextension addons/nodetunnel/
+          cp godot/plugin.cfg addons/nodetunnel/
+          cp -r godot/scripts/* addons/nodetunnel/ 2>/dev/null || true
+      
+      - name: Download Linux binary
+        uses: actions/download-artifact@v3
+        with:
+          name: linux-binary
+          path: addons/nodetunnel/bin/
+      
+      - name: Download Windows binary
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-binary
+          path: addons/nodetunnel/bin/
+      
+      - name: Download macOS binary
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-binary
+          path: addons/nodetunnel/bin/
+      
+      - name: Create plugin archives
+        run: |
+          zip -r nodetunnel.zip addons/
+          tar -czf nodetunnel.tar.gz addons/
+      
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            nodetunnel.zip
+            nodetunnel.tar.gz
