@@ -24,7 +24,7 @@
 ### Prerequisites
 - NodeTunnel is still in beta, you may encounter some issues.
 - Relay servers are a bulletproof way to connect behind NAT, but latency will always be higher than direct connection, and likely higher than a dedicated server.
-- NodeTunnel is built for session-based games (games like Lethal Company, 
+- NodeTunnel is built for session-based games (games like Lethal Company, Phasmophobia, etc.)
 
 ### Installation
 1. Download the latest release of NodeTunnel under [releases](https://github.com/NodeTunnel/godot-plugin/releases/latest)
