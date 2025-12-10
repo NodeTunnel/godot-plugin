@@ -1,18 +1,17 @@
+use std::io::ErrorKind;
 use std::net::{SocketAddr, UdpSocket};
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use godot::global::{godot_print, godot_warn};
+use paperudp::channel::DecodeResult;
+use paperudp::packet::PacketType;
 use crate::transport::common::Channel;
-use crate::transport::reliability::{ReliableReceiver, ReliableSender, SequenceNumber};
 
 pub struct ClientTransport {
     socket: UdpSocket,
+    channel: paperudp::channel::Channel,
     server_addr: SocketAddr,
-    reliable_sender: Mutex<ReliableSender>,
-    reliable_receiver: Mutex<ReliableReceiver>,
     pending_events: Vec<ClientEvent>,
+    pending_sends: Vec<Vec<u8>>,
     last_resend_check: Instant,
-    last_ack_send: Instant,
     connected: bool,
 }
 
@@ -29,11 +28,10 @@ impl ClientTransport {
         Ok(Self {
             socket,
             server_addr,
-            reliable_sender: Mutex::new(ReliableSender::new()),
-            reliable_receiver: Mutex::new(ReliableReceiver::new()),
+            channel: paperudp::channel::Channel::new(),
             pending_events: Vec::new(),
+            pending_sends: Vec::new(),
             last_resend_check: Instant::now(),
-            last_ack_send: Instant::now(),
             connected: true,
         })
     }
@@ -42,61 +40,37 @@ impl ClientTransport {
         let mut buf = [0u8; 65535];
         let now = Instant::now();
 
+        self.flush_pending_packets();
+
         if now.duration_since(self.last_resend_check) > Duration::from_millis(50) {
             self.do_resends();
             self.last_resend_check = now;
-        }
-
-        if now.duration_since(self.last_ack_send) > Duration::from_millis(10) {
-            self.send_acks().ok();
-            self.last_ack_send = now;
         }
 
         loop {
             match self.socket.recv_from(&mut buf) {
                 Ok((len, _addr)) => {
                     if len == 0 { continue; }
+                    let res = self.channel.decode(&buf[..len]);
 
-                    let packet_type = buf[0];
-
-                    match packet_type {
-                        0 => { // Reliable packet
-                            if buf.len() < 5 { continue; }
-                            let seq = u32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-                            let data = buf[5..len].to_vec();
-
-                            let mut receiver = self.reliable_receiver.lock().unwrap();
-                            let acks = receiver.receive(SequenceNumber::new(seq), data);
-
-                            let mut sender = self.reliable_sender.lock().unwrap();
-                            for ack in acks {
-                                sender.queue_ack(ack);
-                            }
-
-                            let packets = receiver.take_all_packets();
-                            for packet in packets {
+                    match res {
+                        DecodeResult::Data { payload, ack_packet } => {
+                            for p in payload {
                                 self.pending_events.push(ClientEvent::PacketReceived {
-                                    data: packet,
+                                    data: p,
                                     channel: Channel::Reliable,
                                 });
                             }
+
+                            if let Some(ack) = ack_packet {
+                                self.socket.send_to(&ack, self.server_addr).unwrap();
+                            }
                         }
-                        1 => { // Unreliable packet
-                            self.pending_events.push(ClientEvent::PacketReceived {
-                                data: buf[1..len].to_vec(),
-                                channel: Channel::Unreliable,
-                            });
-                        }
-                        2 => { // ACK packet
-                            if buf.len() < 5 { continue; }
-                            let seq = u32::from_be_bytes([buf[1], buf[2], buf[3], buf[4]]);
-                            let mut sender = self.reliable_sender.lock().unwrap();
-                            sender.ack_received(SequenceNumber::new(seq));
-                        }
-                        _ => {}
+                        DecodeResult::Ack { .. } => {}
+                        DecodeResult::None => {}
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(ref e) if e.kind() == ErrorKind::WouldBlock => break,
                 Err(_) => break,
             }
         }
@@ -104,54 +78,69 @@ impl ClientTransport {
         std::mem::take(&mut self.pending_events)
     }
 
-    pub fn send(&self, data: Vec<u8>, channel: Channel) -> Result<(), std::io::Error> {
-        match channel {
+    pub fn send(&mut self, data: Vec<u8>, channel: Channel) -> Result<(), std::io::Error> {
+        let packet = match channel {
             Channel::Reliable => {
-                let mut sender = self.reliable_sender.lock().unwrap();
-                let seq = sender.send(data.clone());
-
-                let mut packet = vec![0u8];
-                packet.extend(seq.0.to_be_bytes());
-                packet.extend(data);
-                self.socket.send_to(&packet, self.server_addr)?;
+                let pkt = self.channel.encode(
+                    &data,
+                    PacketType::ReliableOrdered,
+                );
+                pkt
             }
             Channel::Unreliable => {
-                let mut packet = vec![1u8];
-                packet.extend(data);
-                self.socket.send_to(&packet, self.server_addr)?;
+                let pkt = self.channel.encode(
+                    &data,
+                    PacketType::Unreliable,
+                );
+                pkt
+            }
+        };
+
+        self.try_send_packet(packet)?;
+
+        Ok(())
+    }
+
+    fn try_send_packet(&mut self, packet: Vec<u8>) -> Result<(), std::io::Error> {
+        match self.socket.send_to(&packet, self.server_addr) {
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                self.pending_sends.push(packet);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn flush_pending_packets(&mut self) {
+        let mut still_pending = Vec::new();
+
+        for packet in self.pending_sends.drain(..) {
+            match self.socket.send_to(&packet, self.server_addr) {
+                Ok(_) => {}
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    still_pending.push(packet);
+                }
+                Err(_) => {}
             }
         }
-        Ok(())
+
+        self.pending_sends = still_pending;
     }
 
-    fn send_acks(&self) -> Result<(), std::io::Error> {
-        let mut sender = self.reliable_sender.lock().unwrap();
-        let pending_acks = sender.get_pending_acks();
-
-        for ack in pending_acks {
-            let mut packet = vec![2u8];
-            packet.extend(ack.0.to_be_bytes());
-            self.socket.send_to(&packet, self.server_addr)?;
-        }
-        Ok(())
-    }
-
-    fn do_resends(&self) {
-        let mut sender = self.reliable_sender.lock().unwrap();
-        let resends = sender.get_resends();
-
-        for (seq, data) in resends {
-            let mut packet = vec![0u8];
-            packet.extend(seq.0.to_be_bytes());
-            packet.extend(data);
-
-            let _ = self.socket.send_to(&packet, self.server_addr);
+    fn do_resends(&mut self) {
+        for packet in self.channel.collect_resends(Duration::from_millis(100)) {
+            self.try_send_packet(packet).unwrap();
         }
     }
 
-    pub fn send_keepalive(&self) -> Result<(), std::io::Error> {
-        let packet = vec![3u8];
-        self.socket.send_to(&packet, self.server_addr)?;
+    pub fn send_keepalive(&mut self) -> Result<(), std::io::Error> {
+        let payload = vec![3u8];
+        let pkt = self.channel.encode(
+            &payload,
+            PacketType::Unreliable,
+        );
+        self.socket.send_to(&pkt, self.server_addr)?;
         Ok(())
     }
 
