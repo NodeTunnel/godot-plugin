@@ -6,7 +6,7 @@ signal connected_to_room
 ## so pick whatever you want. Just make sure it's unique enough so someone else doesn't
 ## accidentally use your app ID and rooms from another game.
 const APP_ID = "nodetunnel_demo"
-const RELAY_ADDRESS = "127.0.0.1:8080"
+const RELAY_ADDRESS = "45.33.64.148:8080"
 
 @onready var peer := NodeTunnelPeer.new()
 
