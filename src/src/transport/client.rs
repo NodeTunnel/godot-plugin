@@ -54,7 +54,15 @@ impl ClientTransport {
                     let res = self.channel.decode(&buf[..len]);
 
                     match res {
-                        DecodeResult::Data { payload, ack_packet } => {
+                        DecodeResult::Unreliable { payload } => {
+                            for p in payload {
+                                self.pending_events.push(ClientEvent::PacketReceived {
+                                    data: p,
+                                    channel: Channel::Unreliable,
+                                });
+                            }
+                        }
+                        DecodeResult::Reliable { payload, ack_packet, .. } => {
                             for p in payload {
                                 self.pending_events.push(ClientEvent::PacketReceived {
                                     data: p,
