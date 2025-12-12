@@ -16,10 +16,11 @@ run/main_scene="uid://f23eh00fbej4"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+NodeTunnel="*res://addons/nodetunnel/nodetunnel.gd"
+Multiplayer="*res://demo/multiplayer.gd"
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/nodetunnel/plugin.cfg")
-
-[global_group]
-
-network_nodes=""
