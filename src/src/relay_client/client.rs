@@ -147,6 +147,15 @@ impl RelayClient {
         Ok(())
     }
 
+    pub fn req_update_room(&mut self, room_id: &str, metadata: &str) -> Result<(), RelayClientError> {
+        self.send_packet(
+            PacketType::UpdateRoom { room_id: room_id.to_string(), metadata: metadata.to_string() },
+            Channel::Reliable
+        )?;
+
+        Ok(())
+    }
+
     pub fn send_game_data(&mut self, peer_id: i32, data: Vec<u8>, channel: Channel) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::GameData { from_peer: peer_id, data },

@@ -10,3 +10,4 @@ pub const FORCE_DISCONNECT: u8 = 8;
 pub const ERROR_PACKET: u8 = 9;
 pub const REQ_ROOMS: u8 = 10;
 pub const GET_ROOMS: u8 = 11;
+pub const UPDATE_ROOM: u8 = 12;

@@ -15,6 +15,7 @@ pub enum PacketType {
     CreateRoom { is_public: bool, metadata: String },
     ReqRooms,
     GetRooms { rooms: Vec<RoomInfo> },
+    UpdateRoom { room_id: String, metadata: String },
     JoinRoom { room_id: String },
     ConnectedToRoom { room_id: String, peer_id: i32 },
     PeerJoinedRoom { peer_id: i32 },
@@ -97,6 +98,12 @@ impl PacketType {
                 PacketType::GetRooms { rooms }
             }
 
+            UPDATE_ROOM => {
+                let (room_id, r) = read_string(rest)?;
+                let (metadata, _) = read_string(r)?;
+                PacketType::UpdateRoom { room_id, metadata }
+            }
+
             _ => return Err(ProtocolError::UnknownPacketType(packet_id))
         })
     }
@@ -128,6 +135,12 @@ impl PacketType {
             PacketType::GetRooms { rooms } => {
                 buf.push(GET_ROOMS);
                 push_vec_room_info(&mut buf, rooms);
+            }
+
+            PacketType::UpdateRoom { room_id, metadata } => {
+                buf.push(UPDATE_ROOM);
+                push_string(&mut buf, room_id);
+                push_string(&mut buf, metadata);
             }
 
             PacketType::JoinRoom { room_id } => {

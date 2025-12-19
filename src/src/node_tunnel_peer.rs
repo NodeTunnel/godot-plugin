@@ -24,6 +24,7 @@ struct GamePacket {
 struct NodeTunnelPeer {
     app_id: String,
     unique_id: i32,
+    room_id: String,
     connection_status: ConnectionStatus,
     target_peer: i32,
     transfer_mode: TransferMode,
@@ -43,7 +44,7 @@ impl NodeTunnelPeer {
     fn error(error_message: String);
 
     #[signal]
-    fn room_connected(room_id: String);
+    fn room_connected();
 
     #[signal]
     fn forced_disconnect();
@@ -117,6 +118,17 @@ impl NodeTunnelPeer {
         }
     }
 
+    #[func]
+    fn update_room(&mut self, metadata: String) -> Error {
+        match self.relay_client.req_update_room(&self.room_id, &metadata) {
+            Ok(_) => Error::OK,
+            Err(e) => {
+                godot_error!("[NodeTunnel] Failed to update room: {}", e);
+                Error::from(Error::ERR_CANT_CREATE)
+            }
+        }
+    }
+
     fn handle_relay_event(&mut self, event: RelayEvent) {
         match event {
             RelayEvent::ConnectedToServer => {
@@ -149,12 +161,13 @@ impl NodeTunnelPeer {
             RelayEvent::RoomJoined { room_id, peer_id } => {
                 self.connection_status = ConnectionStatus::CONNECTED;
                 self.unique_id = peer_id;
+                self.room_id = room_id;
 
                 if !self.is_server() {
                     self.signals().peer_connected().emit(1);
                 }
 
-                self.signals().room_connected().emit(room_id);
+                self.signals().room_connected().emit();
             },
             RelayEvent::PeerJoinedRoom { peer_id } => {
                 if self.is_server() {
@@ -196,6 +209,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             app_id: "".to_string(),
+            room_id: "".to_string(),
             unique_id: 0,
             connection_status: ConnectionStatus::DISCONNECTED,
             target_peer: 0,
