@@ -1,7 +1,7 @@
 use std::net::{SocketAddr};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
-use godot::builtin::{Array, Dictionary, PackedByteArray, Variant};
+use godot::builtin::{Array, Dictionary, GString, PackedByteArray, Variant};
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
 use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
@@ -24,7 +24,8 @@ struct GamePacket {
 struct NodeTunnelPeer {
     app_id: String,
     unique_id: i32,
-    room_id: String,
+    #[var]
+    room_id: GString,
     connection_status: ConnectionStatus,
     target_peer: i32,
     transfer_mode: TransferMode,
@@ -120,7 +121,7 @@ impl NodeTunnelPeer {
 
     #[func]
     fn update_room(&mut self, metadata: String) -> Error {
-        match self.relay_client.req_update_room(&self.room_id, &metadata) {
+        match self.relay_client.req_update_room(&self.room_id.to_string(), &metadata) {
             Ok(_) => Error::OK,
             Err(e) => {
                 godot_error!("[NodeTunnel] Failed to update room: {}", e);
@@ -161,7 +162,7 @@ impl NodeTunnelPeer {
             RelayEvent::RoomJoined { room_id, peer_id } => {
                 self.connection_status = ConnectionStatus::CONNECTED;
                 self.unique_id = peer_id;
-                self.room_id = room_id;
+                self.room_id = room_id.to_godot();
 
                 if !self.is_server() {
                     self.signals().peer_connected().emit(1);
@@ -209,7 +210,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             app_id: "".to_string(),
-            room_id: "".to_string(),
+            room_id: "".to_godot(),
             unique_id: 0,
             connection_status: ConnectionStatus::DISCONNECTED,
             target_peer: 0,
