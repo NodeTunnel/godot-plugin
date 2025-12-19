@@ -6,7 +6,7 @@ extends VBoxContainer
 
 func _on_host_pressed() -> void:
 	await Multiplayer.setup_connection(room_region.selected)
-	Multiplayer.nt_peer.host_room(true, room_name.text, 4)
+	Multiplayer.nt_peer.host_room(true, "")
 
 func _on_join_pressed() -> void:
 	var id = room_id_in.text

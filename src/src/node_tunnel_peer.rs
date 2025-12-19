@@ -82,8 +82,8 @@ impl NodeTunnelPeer {
     }
 
     #[func]
-    fn host_room(&mut self, public: bool, display_name: String, max_players: i32) -> Error {
-        match self.relay_client.req_create_room(public, display_name, max_players) {
+    fn host_room(&mut self, public: bool, metadata: String) -> Error {
+        match self.relay_client.req_create_room(public, metadata) {
             Ok(_) => Error::OK,
             Err(e) => {
                 godot_error!("[NodeTunnel] Failed to create room: {}", e);
@@ -137,9 +137,7 @@ impl NodeTunnelPeer {
                 for room in rooms {
                     let mut room_dict = Dictionary::new();
                     room_dict.set("id", room.id.clone());
-                    room_dict.set("name", room.name.clone());
-                    room_dict.set("players", room.players);
-                    room_dict.set("max_players", room.max_players);
+                    room_dict.set("metadata", room.metadata.clone());
 
                     room_array.push(&room_dict.to_variant());
                 }

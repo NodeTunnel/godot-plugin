@@ -1,6 +1,6 @@
 mod node_tunnel_peer;
 mod relay_client;
-mod protocol;
+pub mod protocol;
 mod transport;
 
 use godot::prelude::*;
