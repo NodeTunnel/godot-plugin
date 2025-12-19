@@ -20,8 +20,15 @@ func setup_connection(relay_idx: int):
 	await nt_peer.authenticated
 	print("authenticated")
 
+func update_room_metadata():
+	nt_peer.update_room("players: 1")
+
 func get_relay_addr(prefix: String) -> String:
 	for relay in RELAYS:
 		if relay["prefix"] == prefix:
 			return relay["addr"]
 	return ""
+
+func _process(delta: float) -> void:
+	if Input.is_action_just_pressed("ui_right"):
+		update_room_metadata()

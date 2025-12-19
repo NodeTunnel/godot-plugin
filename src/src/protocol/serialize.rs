@@ -31,23 +31,6 @@ pub fn read_string(bytes: &[u8]) -> Result<(String, &[u8]), ProtocolError> {
     Ok((String::from_utf8(string_bytes.to_vec())?, remaining))
 }
 
-pub fn read_vec_i32(bytes: &[u8]) -> Result<(Vec<i32>, &[u8]), ProtocolError> {
-    let (len, mut rest) = read_i32(bytes)?;
-
-    if len < 0 {
-        return Err(ProtocolError::NegativeVectorLength());
-    }
-
-    let mut values = Vec::with_capacity(len as usize);
-    for _ in 0..len {
-        let (value, remaining) = read_i32(rest)?;
-        values.push(value);
-        rest = remaining;
-    }
-
-    Ok((values, rest))
-}
-
 pub fn push_string(buf: &mut Vec<u8>, value: &str) {
     let bytes = value.as_bytes();
     buf.extend((bytes.len() as i32).to_be_bytes());
@@ -62,20 +45,11 @@ pub fn push_i32(buf: &mut Vec<u8>, value: i32) {
     buf.extend(value.to_be_bytes());
 }
 
-pub fn push_vec_i32(buf: &mut Vec<u8>, values: &[i32]) {
-    push_i32(buf, values.len() as i32);
-    for value in values {
-        push_i32(buf, *value);
-    }
-}
-
 pub fn read_room_info(bytes: &[u8]) -> Result<(RoomInfo, &[u8]), ProtocolError> {
     let (id, r) = read_string(bytes)?;
-    let (name, r) = read_string(r)?;
-    let (players, r) = read_i32(r)?;
-    let (max_players, r) = read_i32(r)?;
+    let (metadata, r) = read_string(r)?;
 
-    Ok((RoomInfo { id, name, players, max_players }, r))
+    Ok((RoomInfo { id, metadata }, r))
 }
 
 pub fn read_vec_room_info(bytes: &[u8]) -> Result<(Vec<RoomInfo>, &[u8]), ProtocolError> {
@@ -95,16 +69,10 @@ pub fn read_vec_room_info(bytes: &[u8]) -> Result<(Vec<RoomInfo>, &[u8]), Protoc
     Ok((rooms, rest))
 }
 
-pub fn push_room_info(buf: &mut Vec<u8>, room: &RoomInfo) {
-    push_string(buf, &room.id);
-    push_string(buf, &room.name);
-    push_i32(buf, room.players);
-    push_i32(buf, room.max_players);
-}
-
 pub fn push_vec_room_info(buf: &mut Vec<u8>, rooms: &[RoomInfo]) {
     push_i32(buf, rooms.len() as i32);
     for room in rooms {
-        push_room_info(buf, room);
+        push_string(buf, &room.id);
+        push_string(buf, &room.metadata);
     }
 }

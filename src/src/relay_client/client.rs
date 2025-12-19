@@ -119,12 +119,11 @@ impl RelayClient {
         Ok(())
     }
 
-    pub fn req_create_room(&mut self, is_public: bool, name: String, max_players: i32) -> Result<(), RelayClientError> {
+    pub fn req_create_room(&mut self, is_public: bool, metadata: String) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::CreateRoom {
                 is_public,
-                name,
-                max_players
+                metadata,
             },
             Channel::Reliable
         )?;
@@ -142,6 +141,15 @@ impl RelayClient {
     pub fn req_join_room(&mut self, room_id: String) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::JoinRoom { room_id },
+            Channel::Reliable
+        )?;
+
+        Ok(())
+    }
+
+    pub fn req_update_room(&mut self, room_id: &str, metadata: &str) -> Result<(), RelayClientError> {
+        self.send_packet(
+            PacketType::UpdateRoom { room_id: room_id.to_string(), metadata: metadata.to_string() },
             Channel::Reliable
         )?;
 

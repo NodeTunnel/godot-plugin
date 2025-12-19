@@ -5,18 +5,17 @@ use crate::protocol::serialize::{push_bool, push_i32, push_string, push_vec_room
 #[derive(Debug, Clone)]
 pub struct RoomInfo {
     pub id: String,
-    pub name: String,
-    pub players: i32,
-    pub max_players: i32,
+    pub metadata: String,
 }
 
 #[derive(Debug, Clone)]
 pub enum PacketType {
     Authenticate { app_id: String, version: String },
     ClientAuthenticated,
-    CreateRoom { is_public: bool, name: String, max_players: i32 },
+    CreateRoom { is_public: bool, metadata: String },
     ReqRooms,
     GetRooms { rooms: Vec<RoomInfo> },
+    UpdateRoom { room_id: String, metadata: String },
     JoinRoom { room_id: String },
     ConnectedToRoom { room_id: String, peer_id: i32 },
     PeerJoinedRoom { peer_id: i32 },
@@ -46,8 +45,7 @@ impl PacketType {
 
             CREATE_ROOM => {
                 let (is_public, r) = read_bool(rest)?;
-                let (max_players, r) = read_i32(r)?;
-                let name = match read_string(r) {
+                let metadata = match read_string(r) {
                     Ok((name, _)) => {
                         name
                     }
@@ -56,7 +54,7 @@ impl PacketType {
                     }
                 };
 
-                PacketType::CreateRoom { is_public, name, max_players }
+                PacketType::CreateRoom { is_public, metadata }
             },
 
             JOIN_ROOM => {
@@ -100,6 +98,12 @@ impl PacketType {
                 PacketType::GetRooms { rooms }
             }
 
+            UPDATE_ROOM => {
+                let (room_id, r) = read_string(rest)?;
+                let (metadata, _) = read_string(r)?;
+                PacketType::UpdateRoom { room_id, metadata }
+            }
+
             _ => return Err(ProtocolError::UnknownPacketType(packet_id))
         })
     }
@@ -118,11 +122,10 @@ impl PacketType {
                 buf.push(CLIENT_AUTHENTICATED);
             }
 
-            PacketType::CreateRoom { is_public, name, max_players } => {
+            PacketType::CreateRoom { is_public, metadata } => {
                 buf.push(CREATE_ROOM);
                 push_bool(&mut buf, *is_public);
-                push_i32(&mut buf, *max_players);
-                push_string(&mut buf, name);
+                push_string(&mut buf, metadata);
             }
 
             PacketType::ReqRooms => {
@@ -132,6 +135,12 @@ impl PacketType {
             PacketType::GetRooms { rooms } => {
                 buf.push(GET_ROOMS);
                 push_vec_room_info(&mut buf, rooms);
+            }
+
+            PacketType::UpdateRoom { room_id, metadata } => {
+                buf.push(UPDATE_ROOM);
+                push_string(&mut buf, room_id);
+                push_string(&mut buf, metadata);
             }
 
             PacketType::JoinRoom { room_id } => {
