@@ -1,6 +1,6 @@
 use crate::protocol::ids::*;
 use crate::protocol::error::ProtocolError;
-use crate::protocol::serialize::{push_bool, push_i32, push_string, push_vec_room_info, read_bool, read_i32, read_string, read_vec_room_info};
+use crate::protocol::serialize::{push_bool, push_i32, push_string, push_u64, push_vec_room_info, read_bool, read_i32, read_string, read_u64, read_vec_room_info};
 
 #[derive(Debug, Clone)]
 pub struct RoomInfo {
@@ -16,8 +16,10 @@ pub enum PacketType {
     ReqRooms,
     GetRooms { rooms: Vec<RoomInfo> },
     UpdateRoom { room_id: String, metadata: String },
-    JoinRoom { room_id: String },
+    ReqJoin { room_id: String, metadata: String },
+    JoinRes { target_id: u64, room_id: String, allowed: bool },
     ConnectedToRoom { room_id: String, peer_id: i32 },
+    PeerJoinAttempt { target_id: u64, metadata: String },
     PeerJoinedRoom { peer_id: i32 },
     PeerLeftRoom { peer_id: i32 },
     GameData { from_peer: i32, data: Vec<u8> },
@@ -58,14 +60,21 @@ impl PacketType {
             },
 
             JOIN_ROOM => {
-                let (room_id, _) = read_string(rest)?;
-                PacketType::JoinRoom { room_id }
+                let (room_id, r) = read_string(rest)?;
+                let (metadata, _) = read_string(r)?;
+                PacketType::ReqJoin { room_id, metadata }
             }
 
             CONNECTED_TO_ROOM => {
                 let (room_id, r) = read_string(rest)?;
                 let (peer_id, _) = read_i32(r)?;
                 PacketType::ConnectedToRoom { room_id, peer_id }
+            }
+
+            PEER_JOIN_ATTEMPT => {
+                let (target_id, r) = read_u64(rest)?;
+                let (metadata, _) = read_string(r)?;
+                PacketType::PeerJoinAttempt { target_id, metadata }
             }
 
             PEER_JOINED => {
@@ -102,6 +111,13 @@ impl PacketType {
                 let (room_id, r) = read_string(rest)?;
                 let (metadata, _) = read_string(r)?;
                 PacketType::UpdateRoom { room_id, metadata }
+            }
+
+            JOIN_RES => {
+                let (target_id, r) = read_u64(rest)?;
+                let (room_id, r) = read_string(r)?;
+                let (allowed, _) = read_bool(r)?;
+                PacketType::JoinRes { target_id, room_id, allowed }
             }
 
             _ => return Err(ProtocolError::UnknownPacketType(packet_id))
@@ -143,15 +159,29 @@ impl PacketType {
                 push_string(&mut buf, metadata);
             }
 
-            PacketType::JoinRoom { room_id } => {
+            PacketType::ReqJoin { room_id, metadata } => {
                 buf.push(JOIN_ROOM);
                 push_string(&mut buf, room_id);
+                push_string(&mut buf, metadata);
+            }
+
+            PacketType::JoinRes { target_id, room_id, allowed } => {
+                buf.push(JOIN_RES);
+                push_u64(&mut buf, *target_id);
+                push_string(&mut buf, room_id);
+                push_bool(&mut buf, *allowed);
             }
 
             PacketType::ConnectedToRoom { room_id, peer_id } => {
                 buf.push(CONNECTED_TO_ROOM);
                 push_string(&mut buf, room_id);
                 push_i32(&mut buf, *peer_id);
+            }
+
+            PacketType::PeerJoinAttempt { target_id, metadata } => {
+                buf.push(PEER_JOIN_ATTEMPT);
+                push_u64(&mut buf, *target_id);
+                push_string(&mut buf, metadata);
             }
 
             PacketType::PeerJoinedRoom { peer_id } => {

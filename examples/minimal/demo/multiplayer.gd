@@ -19,15 +19,25 @@ func setup_connection(relay_idx: int):
 	
 	await nt_peer.authenticated
 	print("authenticated")
+	
+	nt_peer.join_validation = validate_join_attempt
+
+func validate_join_attempt(join_data: String) -> bool:
+	var data = JSON.parse_string(join_data)
+	
+	if data.password == "1234":
+		return true
+	
+	return false
 
 func update_room_metadata():
 	nt_peer.update_room("players: 1")
 
-func get_relay_addr(prefix: String) -> String:
-	for relay in RELAYS:
-		if relay["prefix"] == prefix:
-			return relay["addr"]
-	return ""
+func get_relay_addr(prefix: String) -> int:
+	for i in range(RELAYS.size()):
+		if RELAYS[i]["prefix"] == prefix:
+			return i
+	return 0
 
 func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("ui_right"):

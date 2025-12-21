@@ -85,6 +85,8 @@ impl RelayClient {
                     events.push(RelayEvent::RoomJoined { room_id, peer_id }),
                 PacketType::GetRooms { rooms } =>
                     events.push(RelayEvent::RoomsReceived { rooms }),
+                PacketType::PeerJoinAttempt { target_id, metadata } =>
+                    events.push(RelayEvent::PeerJoinAttempt { client_id: target_id, metadata } ),
                 PacketType::PeerJoinedRoom { peer_id } =>
                     events.push(RelayEvent::PeerJoinedRoom { peer_id }),
                 PacketType::PeerLeftRoom { peer_id } =>
@@ -138,9 +140,9 @@ impl RelayClient {
         )
     }
 
-    pub fn req_join_room(&mut self, room_id: String) -> Result<(), RelayClientError> {
+    pub fn req_join_room(&mut self, room_id: String, metadata: String) -> Result<(), RelayClientError> {
         self.send_packet(
-            PacketType::JoinRoom { room_id },
+            PacketType::ReqJoin { room_id, metadata },
             Channel::Reliable
         )?;
 
@@ -150,6 +152,19 @@ impl RelayClient {
     pub fn req_update_room(&mut self, room_id: &str, metadata: &str) -> Result<(), RelayClientError> {
         self.send_packet(
             PacketType::UpdateRoom { room_id: room_id.to_string(), metadata: metadata.to_string() },
+            Channel::Reliable
+        )?;
+
+        Ok(())
+    }
+
+    pub fn send_join_response(&mut self, room_id: String, target_id: u64, allowed: bool) -> Result<(), RelayClientError> {
+        self.send_packet(
+            PacketType::JoinRes {
+                allowed,
+                room_id,
+                target_id
+            },
             Channel::Reliable
         )?;
 

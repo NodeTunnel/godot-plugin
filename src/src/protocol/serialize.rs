@@ -16,6 +16,17 @@ pub fn read_i32(bytes: &[u8]) -> Result<(i32, &[u8]), ProtocolError> {
     Ok((value, &bytes[4..]))
 }
 
+pub fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), ProtocolError> {
+    if bytes.len() < 8 {
+        return Err(ProtocolError::NotEnoughBytes(
+            format!("for u64 (need {} bytes, have {})", 8, bytes.len())
+        ));
+    }
+
+    let value = u64::from_be_bytes(bytes[..8].try_into()?);
+    Ok((value, &bytes[8..]))
+}
+
 pub fn read_string(bytes: &[u8]) -> Result<(String, &[u8]), ProtocolError> {
     let (len, rest) = read_i32(bytes)?;
 
@@ -44,6 +55,8 @@ pub fn push_bool(buf: &mut Vec<u8>, value: bool) {
 pub fn push_i32(buf: &mut Vec<u8>, value: i32) {
     buf.extend(value.to_be_bytes());
 }
+
+pub fn push_u64(buf: &mut Vec<u8>, value: u64) { buf.extend(value.to_be_bytes()) }
 
 pub fn read_room_info(bytes: &[u8]) -> Result<(RoomInfo, &[u8]), ProtocolError> {
     let (id, r) = read_string(bytes)?;

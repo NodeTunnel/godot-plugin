@@ -1,7 +1,7 @@
 use std::net::{SocketAddr};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
-use godot::builtin::{Array, Dictionary, GString, PackedByteArray, Variant};
+use godot::builtin::{Array, Callable, Dictionary, GString, PackedByteArray, Variant};
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
 use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
@@ -26,6 +26,8 @@ struct NodeTunnelPeer {
     unique_id: i32,
     #[var]
     room_id: GString,
+    #[var]
+    join_validation: Callable,
     connection_status: ConnectionStatus,
     target_peer: i32,
     transfer_mode: TransferMode,
@@ -109,8 +111,12 @@ impl NodeTunnelPeer {
     }
 
     #[func]
-    fn join_room(&mut self, host_id: String) -> Error {
-        match self.relay_client.req_join_room(host_id) {
+    fn join_room(
+        &mut self,
+        host_id: String,
+        #[opt(default="")] metadata: GString,
+    ) -> Error {
+        match self.relay_client.req_join_room(host_id, metadata.to_string()) {
             Ok(_) => Error::OK,
             Err(e) => {
                 godot_error!("[NodeTunnel] Failed to join room: {}", e);
@@ -170,6 +176,21 @@ impl NodeTunnelPeer {
 
                 self.signals().room_connected().emit();
             },
+            RelayEvent::PeerJoinAttempt { client_id, metadata } => {
+                if self.is_server() {
+                    let mut allowed = true;
+
+                    if self.join_validation.is_valid() {
+                        allowed = self.join_validation.call(&[metadata.to_variant()]).booleanize()
+                    }
+
+                    self.relay_client.send_join_response(
+                        self.room_id.to_string(),
+                        client_id,
+                        allowed
+                    ).expect("todo");
+                }
+            }
             RelayEvent::PeerJoinedRoom { peer_id } => {
                 if self.is_server() {
                     self.signals().peer_connected().emit(peer_id as i64);
@@ -211,6 +232,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
         Self {
             app_id: "".to_string(),
             room_id: "".to_godot(),
+            join_validation: Callable::invalid(),
             unique_id: 0,
             connection_status: ConnectionStatus::DISCONNECTED,
             target_peer: 0,
