@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-var update_check = preload("utils/update_check.gd").new()
+var update_check = preload("updater/update_check.gd").new()
 
 func _enter_tree():
 	add_child(update_check)
