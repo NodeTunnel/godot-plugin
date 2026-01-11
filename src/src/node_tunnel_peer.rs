@@ -1,4 +1,4 @@
-use std::net::{SocketAddr};
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 use godot::builtin::{Array, Callable, Dictionary, GString, PackedByteArray, Variant};
@@ -59,13 +59,21 @@ impl NodeTunnelPeer {
     fn connect_to_relay(&mut self, relay_address: String, app_id: String) -> Error {
         self.app_id = app_id;
 
-        let socket_addr = match SocketAddr::from_str(&relay_address) {
-            Ok(a) => a,
+        let socket_addr = match relay_address.to_socket_addrs() {
+            Ok(mut addrs) => match addrs.next() {
+                Some(a) => a,
+                None => {
+                    godot_error!("[NodeTunnel] DNS lookup returned no addresses: {}", relay_address);
+                    return Error::from(Error::ERR_CANT_CONNECT);
+                }
+            },
             Err(e) => {
-                godot_error!("[NodeTunnel] Invalid relay address: {}, {}", relay_address, e);
-                return Error::from(
-                    Error::ERR_INVALID_PARAMETER
-                )
+                godot_error!(
+                "[NodeTunnel] Failed to resolve relay address {}: {}",
+                relay_address,
+                e
+            );
+                return Error::from(Error::ERR_CANT_CONNECT);
             }
         };
 
