@@ -8,7 +8,7 @@ name = "nodetunnel"
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = { version = "0.4.3", features = ["api-4-2"] }
+godot = { version = "0.4.3", features = ["api-4-2", "experimental-threads"] }
 thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 paperudp = { git = "https://github.com/curtjs/paperudp.git" }
