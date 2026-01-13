@@ -80,9 +80,44 @@ jobs:
         with:
           name: macos-binary
           path: src/libnodetunnel.dylib
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Install Android NDK
+        run: |
+          NDK_VERSION="26.1.10909125"
+          sdkmanager --install "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+      
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      
+      - name: Build Android ARM64
+        run: cargo ndk -t arm64-v8a build --release
+        working-directory: src
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-binary
+          path: src/target/aarch64-linux-android/release/libnodetunnel.so
 
   package:
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     
     steps:
@@ -90,8 +125,9 @@ jobs:
       
       - name: Create plugin structure
         run: |
-          mkdir -p addons/nodetunnel/bin
-          rm -f addons/nodetunnel/bin/*
+          mkdir -p addons/nodetunnel/bin/android/arm64
+          find addons/nodetunnel/bin -maxdepth 1 -type f -delete
+          find addons/nodetunnel/bin/android/arm64 -type f -delete
       
       - name: Download Linux binary
         uses: actions/download-artifact@v4
@@ -110,6 +146,12 @@ jobs:
         with:
           name: macos-binary
           path: addons/nodetunnel/bin/
+      
+      - name: Download Android ARM64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: android-arm64-binary
+          path: addons/nodetunnel/bin/android/arm64/
       
       - name: Create plugin archive
         working-directory: addons
