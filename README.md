@@ -26,6 +26,8 @@
 - Relay servers are a bulletproof way to connect behind NAT, but latency will always be higher than direct connection, and likely higher than a dedicated server.
 - NodeTunnel is built for session-based games (games like Lethal Company, Phasmophobia, etc.)
 
+*Note: The NodeTunnel server & client is very fast and adds <1ms of overhead, nearly identical to `ENetMultiplayerPeer`. Higher latency is due to the extra trip that a packet has to make, not a flaw in NodeTunnel itself.*
+
 ### Installation
 1. Download the latest release of NodeTunnel under [releases](https://github.com/NodeTunnel/godot-plugin/releases/latest)
 2. Download `nodetunnel.zip` if on Windows or Mac, **Linux users should download `nodetunnel.tar.gz`**
@@ -39,7 +41,8 @@ NodeTunnel's API is very easy to use. Because NodeTunnel integrates with Godot's
 will work identically with NodeTunnel, and the only thing that needs changed is making connections. Here's a basic run-down of how it works.
 
 ### Connecting to Relay Server
-Before hosting or joining a room, you must first connect and authenticate with a relay server. You can do this in a `_ready` function in a script where you handle multiplayer setup.
+Before hosting or joining a room, you must first connect and authenticate with a relay server. You can do this in a `_ready` function in a script where you handle multiplayer setup. Note that you must first get your application token from [nodetunnel.io](https://nodetunnel.io).
+
 Here's an example:
 ```python
 # multiplayer_example.gd
@@ -48,14 +51,14 @@ var peer: NodeTunnelPeer
 
 func _ready() -> void:
 	peer = NodeTunnelPeer.new()
-	peer.connect_to_relay("45.33.64.148:8080", "my_random_app_id")
+	peer.connect_to_relay("us_east.nodetunnel.io:8080", "application_token")
 	multiplayer.multiplayer_peer = peer
 	
 	print("Authenticating")
 	await peer.authenticated
 	print("Authenticated!")
 ```
-*Note: You can use whatever app ID you want, but make sure it's somewhat unique. Conflicting app IDs will result in issues. This is obviously an issue and will be fixed soon.*
+*Note: While you should be careful to not leak your application token, it's not the end of the world. It exists as a "filter" for rooms.*
 
 ### Hosting a Room
 After authenticating with the relay server, you may then host a room. Doing so is easy:
@@ -65,13 +68,13 @@ After authenticating with the relay server, you may then host a room. Doing so i
 var peer: NodeTunnelPeer
 
 func host_room() -> void:
-	peer.host_room(true, "My Room", 4)
+	peer.host_room(true)
 	
 	print("Hosting room...")
-	var room_id = await peer.room_connected
-	print("Connected to room: ", room_id)
+	await peer.room_connected
+	print("Connected to room: ", peer.room_id)
 ```
-After creating a room, the `room_connected` signal will eventually emit after the relay server has processed the request. It returns a room ID, which can be shared to allow other players to join.
+After creating a room, the `room_connected` signal will eventually emit after the relay server has processed the request. `room_id` will be filled as well, which can be shared to allow other players to join.
 
 ### Joining a Room
 After authenticating with the relay server, you may then join a room after receiving a room ID.
@@ -107,7 +110,7 @@ func _ready() -> void:
 			push_error("NodeTunnel Error: ", error_msg)
 	)
 	
-	peer.connect_to_relay("45.33.64.148:8080", "test_123213213")
+	peer.connect_to_relay("us_east.nodetunnel.io:8080", "application_token")
   ...
 ```
 Notice that the error signal is connected before calling any other functions. `connect_to_relay` can result in an error.
