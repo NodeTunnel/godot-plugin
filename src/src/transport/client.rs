@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
+use godot::global::godot_warn;
 use paperudp::channel::DecodeResult;
 use paperudp::packet::PacketType;
 use crate::transport::common::Channel;
@@ -71,7 +72,9 @@ impl ClientTransport {
                             }
 
                             if let Some(ack) = ack_packet {
-                                self.socket.send_to(&ack, self.server_addr).unwrap();
+                                if let Err(e) = self.socket.send_to(&ack, self.server_addr) {
+                                    godot_warn!("Encountered error while sending acknowledgement packet: {e}")
+                                }
                             }
                         }
                         DecodeResult::Ack { .. } => {}
@@ -138,7 +141,9 @@ impl ClientTransport {
 
     fn do_resends(&mut self) {
         for packet in self.channel.collect_resends(Duration::from_millis(100)) {
-            self.try_send_packet(packet).unwrap();
+            if let Err(e) = self.try_send_packet(packet) {
+                godot_warn!("Failed to send resend packet: {e}")
+            }
         }
     }
 
