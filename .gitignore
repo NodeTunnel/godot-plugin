@@ -12,3 +12,9 @@ addons/nodetunnel/bin/*.dylib
 
 # Rust build artifacts
 src/target/
+
+# Test project
+project.godot
+test.gd
+test.gd.uid
+test.tscn
