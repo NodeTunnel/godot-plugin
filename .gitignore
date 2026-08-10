@@ -12,3 +12,5 @@ addons/nodetunnel/bin/*.dylib
 
 # Rust build artifacts
 src/target/
+
+.DS_Store

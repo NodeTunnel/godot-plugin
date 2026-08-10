@@ -34,9 +34,9 @@ func _handle_res(result, response_code, headers, body: PackedByteArray):
 			print("[NodeTunnel] v%s available! (Currently on: v)" % latest, plugin_version)
 
 func _compare(v1: String, v2: String) -> int:
-	v1 = v1.split("_", true, 1)[0]
-	v2 = v2.split("_", true, 1)[0]
-	
+	v1 = v1.split("_", true, 1)[0].trim_prefix("v")
+	v2 = v2.split("_", true, 1)[0].trim_prefix("v")
+
 	var versions_1 := v1.split(".")
 	var versions_2 := v2.split(".")
 	
