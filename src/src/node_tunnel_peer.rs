@@ -20,11 +20,11 @@ struct GamePacket {
     transfer_mode: TransferMode,
 }
 
-/// A multiplayer peer that runs Godot multiplayer through a relay server. No port forwarding.
+/// A MultiplayerPeer implementation from NodeTunnel that allows connecting to the relay,
+/// hosting and joining rooms by code. No port forwarding.
 ///
 /// Connect, then host or join, then set the peer. The host is peer 1.
-///
-/// Text you pass in (IDs, metadata) must be 256 bytes or less.
+/// Text you pass in (codes, metadata) must be 256 bytes or less.
 ///
 /// ```gdscript
 /// var peer := NodeTunnelPeer.new()
@@ -35,12 +35,11 @@ struct GamePacket {
 #[derive(GodotClass)]
 #[class(tool, base=MultiplayerPeerExtension)]
 struct NodeTunnelPeer {
-    app_id: String,
-    unique_id: i32,
-    /// The current room ID, or empty if in no room. Share it so others can join.
+    /// Code of the client's current room, or empty if in no room. Share it so others can join.
     #[var]
     room_id: GString,
-    /// Host only. Return `true` to let a player in. Unset means everyone is allowed.
+    /// A callable called when a player attempts joining the room.
+    /// The player will be refused to join if it returns false. Only the host uses it.
     ///
     /// ```gdscript
     /// peer.join_validation = func(metadata: String) -> bool:
@@ -48,6 +47,9 @@ struct NodeTunnelPeer {
     /// ```
     #[var]
     join_validation: Callable,
+
+    app_id: String,
+    unique_id: i32,
     connection_status: ConnectionStatus,
     target_peer: i32,
     transfer_mode: TransferMode,
@@ -60,29 +62,31 @@ struct NodeTunnelPeer {
 
 #[godot_api]
 impl NodeTunnelPeer {
-    /// The relay accepted you. Now host or join a room.
+    /// Emitted when the peer successfully connects to relay. Now host or join a room.
     #[signal]
     fn authenticated();
 
-    /// Something failed. `error_message` says what.
+    /// Emitted when something goes wrong, with [param error_message] describing the error.
     #[signal]
     fn error(error_message: String);
 
-    /// You are in the room. Set `multiplayer.multiplayer_peer` now.
+    /// Emitted when the client successfully connects to a room.
+    /// Set [code]multiplayer.multiplayer_peer[/code] now.
     #[signal]
     fn room_connected();
 
-    /// The relay dropped you.
+    /// Emitted when the client is forcibly disconnected from relay.
     #[signal]
     fn forced_disconnect();
 
-    /// The room list from `get_rooms()`. Each entry has an `id` and `metadata`.
+    /// Emitted after the rooms requested are received.
+    /// Each entry in [param rooms] has an [code]id[/code] and [code]metadata[/code].
     #[signal]
     fn rooms_received(rooms: Array<Variant>);
 
-    /// Connects to the relay at `relay_address` (`"host:port"`) as game `app_id`.
-    ///
-    /// Call this first. Wait for `authenticated`.
+    /// Attempts to connect the client to relay using the [param relay_address]
+    /// ([code]"host:port"[/code]) and [param app_id] provided.
+    /// Call this first. See [signal NodeTunnelPeer.authenticated].
     #[func]
     fn connect_to_relay(&mut self, relay_address: String, app_id: String) -> Error {
         if !Self::fits("app_id", &app_id) {
@@ -125,9 +129,8 @@ impl NodeTunnelPeer {
         Error::OK
     }
 
-    /// Creates a room and hosts it. `public` lists it in `get_rooms()`. `metadata` is your own text.
-    ///
-    /// Wait for `room_connected`, then share `room_id`.
+    /// Creates a room, with its [param metadata] and whether it's [param public] specified.
+    /// See [signal NodeTunnelPeer.room_connected], then share [member NodeTunnelPeer.room_id].
     #[func]
     fn host_room(&mut self, public: bool, metadata: String) -> Error {
         if !Self::fits("metadata", &metadata) {
@@ -143,7 +146,7 @@ impl NodeTunnelPeer {
         }
     }
 
-    /// Requests the public room list. It arrives in the `rooms_received` signal.
+    /// Requests a list of all public rooms. See [signal NodeTunnelPeer.rooms_received].
     #[func]
     fn get_rooms(&mut self) -> Error {
         match self.relay_client.req_rooms() {
@@ -158,9 +161,9 @@ impl NodeTunnelPeer {
         }
     }
 
-    /// Joins the room `host_id`. Optional `metadata` goes to the host's `join_validation`.
-    ///
-    /// Wait for `room_connected`. The host can refuse you.
+    /// Attempts to join a room using [param host_id] as the room code and [param metadata] as
+    /// join metadata, which is passed to the host's [member NodeTunnelPeer.join_validation].
+    /// See [signal NodeTunnelPeer.room_connected]. The host can refuse you.
     #[func]
     fn join_room(
         &mut self,
@@ -182,7 +185,7 @@ impl NodeTunnelPeer {
         }
     }
 
-    /// Host only. Replaces the room's `metadata` in the room list.
+    /// Updates the room with [param metadata]. Only the host can call this.
     #[func]
     fn update_room(&mut self, metadata: String) -> Error {
         if !Self::fits("metadata", &metadata) {
