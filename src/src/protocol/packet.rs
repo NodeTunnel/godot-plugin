@@ -28,6 +28,25 @@ pub enum PacketType {
 }
 
 impl PacketType {
+    // GAME_DATA is bidirectional; every other client-origin type is rejected.
+    pub fn from_server_bytes(bytes: &[u8]) -> Result<Self, ProtocolError> {
+        let Some(&packet_id) = bytes.first() else {
+            return Err(ProtocolError::EmptyPacket);
+        };
+
+        match packet_id {
+            CLIENT_AUTHENTICATED | CONNECTED_TO_ROOM | PEER_JOINED | PEER_LEFT
+            | FORCE_DISCONNECT | ERROR_PACKET | GET_ROOMS | PEER_JOIN_ATTEMPT
+            | GAME_DATA => Self::from_bytes(bytes),
+
+            AUTHENTICATE | CREATE_ROOM | JOIN_ROOM | REQ_ROOMS | UPDATE_ROOM | JOIN_RES => {
+                Err(ProtocolError::UnexpectedDirection(packet_id))
+            }
+
+            _ => Err(ProtocolError::UnknownPacketType(packet_id)),
+        }
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ProtocolError> {
         if bytes.is_empty() {
             return Err(ProtocolError::EmptyPacket);

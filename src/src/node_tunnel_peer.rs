@@ -8,6 +8,7 @@ use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
 use godot::global::{godot_error, godot_warn, Error};
 use godot::meta::ToGodot;
 use godot::obj::{Base, WithUserSignals};
+use crate::protocol::serialize::MAX_STRING_LEN;
 use crate::relay_client::client::RelayClient;
 use crate::relay_client::events::RelayEvent;
 use crate::transport::client::ClientTransport;
@@ -19,15 +20,36 @@ struct GamePacket {
     transfer_mode: TransferMode,
 }
 
+/// A MultiplayerPeer implementation from NodeTunnel that allows connecting to the relay,
+/// hosting and joining rooms by code. No port forwarding.
+///
+/// Connect, then host or join, then set the peer. The host is peer 1.
+/// Text you pass in (codes, metadata) must be 256 bytes or less.
+///
+/// ```gdscript
+/// var peer := NodeTunnelPeer.new()
+/// peer.authenticated.connect(func(): peer.host_room(true, "My Game"))
+/// peer.room_connected.connect(func(): multiplayer.multiplayer_peer = peer)
+/// peer.connect_to_relay("relay.example.com:8080", "my-app-id")
+/// ```
 #[derive(GodotClass)]
 #[class(tool, base=MultiplayerPeerExtension)]
 struct NodeTunnelPeer {
-    app_id: String,
-    unique_id: i32,
+    /// Code of the client's current room, or empty if in no room. Share it so others can join.
     #[var]
     room_id: GString,
+    /// A callable called when a player attempts joining the room.
+    /// The player will be refused to join if it returns false. Only the host uses it.
+    ///
+    /// ```gdscript
+    /// peer.join_validation = func(metadata: String) -> bool:
+    ///     return metadata == "correct-password"
+    /// ```
     #[var]
     join_validation: Callable,
+
+    app_id: String,
+    unique_id: i32,
     connection_status: ConnectionStatus,
     target_peer: i32,
     transfer_mode: TransferMode,
@@ -40,23 +62,37 @@ struct NodeTunnelPeer {
 
 #[godot_api]
 impl NodeTunnelPeer {
+    /// Emitted when the peer successfully connects to relay. Now host or join a room.
     #[signal]
     fn authenticated();
 
+    /// Emitted when something goes wrong, with [param error_message] describing the error.
     #[signal]
     fn error(error_message: String);
 
+    /// Emitted when the client successfully connects to a room.
+    /// Set [code]multiplayer.multiplayer_peer[/code] now.
     #[signal]
     fn room_connected();
 
+    /// Emitted when the client is forcibly disconnected from relay.
     #[signal]
     fn forced_disconnect();
 
+    /// Emitted after the rooms requested are received.
+    /// Each entry in [param rooms] has an [code]id[/code] and [code]metadata[/code].
     #[signal]
     fn rooms_received(rooms: Array<Variant>);
 
+    /// Attempts to connect the client to relay using the [param relay_address]
+    /// ([code]"host:port"[/code]) and [param app_id] provided.
+    /// Call this first. See [signal NodeTunnelPeer.authenticated].
     #[func]
     fn connect_to_relay(&mut self, relay_address: String, app_id: String) -> Error {
+        if !Self::fits("app_id", &app_id) {
+            return Error::from(Error::ERR_INVALID_PARAMETER);
+        }
+
         self.app_id = app_id;
 
         let socket_addr = match relay_address.to_socket_addrs() {
@@ -93,8 +129,14 @@ impl NodeTunnelPeer {
         Error::OK
     }
 
+    /// Creates a room, with its [param metadata] and whether it's [param public] specified.
+    /// See [signal NodeTunnelPeer.room_connected], then share [member NodeTunnelPeer.room_id].
     #[func]
     fn host_room(&mut self, public: bool, metadata: String) -> Error {
+        if !Self::fits("metadata", &metadata) {
+            return Error::from(Error::ERR_INVALID_PARAMETER);
+        }
+
         match self.relay_client.req_create_room(public, metadata) {
             Ok(_) => Error::OK,
             Err(e) => {
@@ -104,6 +146,7 @@ impl NodeTunnelPeer {
         }
     }
 
+    /// Requests a list of all public rooms. See [signal NodeTunnelPeer.rooms_received].
     #[func]
     fn get_rooms(&mut self) -> Error {
         match self.relay_client.req_rooms() {
@@ -118,13 +161,22 @@ impl NodeTunnelPeer {
         }
     }
 
+    /// Attempts to join a room using [param host_id] as the room code and [param metadata] as
+    /// join metadata, which is passed to the host's [member NodeTunnelPeer.join_validation].
+    /// See [signal NodeTunnelPeer.room_connected]. The host can refuse you.
     #[func]
     fn join_room(
         &mut self,
         host_id: String,
         #[opt(default="")] metadata: GString,
     ) -> Error {
-        match self.relay_client.req_join_room(host_id, metadata.to_string()) {
+        let metadata = metadata.to_string();
+
+        if !Self::fits("host_id", &host_id) || !Self::fits("metadata", &metadata) {
+            return Error::from(Error::ERR_INVALID_PARAMETER);
+        }
+
+        match self.relay_client.req_join_room(host_id, metadata) {
             Ok(_) => Error::OK,
             Err(e) => {
                 godot_error!("[NodeTunnel] Failed to join room: {}", e);
@@ -133,8 +185,13 @@ impl NodeTunnelPeer {
         }
     }
 
+    /// Updates the room with [param metadata]. Only the host can call this.
     #[func]
     fn update_room(&mut self, metadata: String) -> Error {
+        if !Self::fits("metadata", &metadata) {
+            return Error::from(Error::ERR_INVALID_PARAMETER);
+        }
+
         match self.relay_client.req_update_room(&self.room_id.to_string(), &metadata) {
             Ok(_) => Error::OK,
             Err(e) => {
@@ -142,6 +199,21 @@ impl NodeTunnelPeer {
                 Error::from(Error::ERR_CANT_CREATE)
             }
         }
+    }
+
+    // The relay drops any packet holding a string over MAX_STRING_LEN, so reject it here
+    // instead of letting the send look like it worked.
+    fn fits(field: &str, value: &str) -> bool {
+        if value.len() > MAX_STRING_LEN {
+            godot_error!(
+                "[NodeTunnel] {} is {} bytes, over the {} byte limit",
+                field,
+                value.len(),
+                MAX_STRING_LEN
+            );
+            return false;
+        }
+        true
     }
 
     fn handle_relay_event(&mut self, event: RelayEvent) {

@@ -22,6 +22,7 @@
 - Perfect for indie games that don't want to manage dedicated servers
 
 ### Prerequisites
+- Godot 4.3 or newer.
 - NodeTunnel is still in beta, you may encounter some issues.
 - Relay servers are a bulletproof way to connect behind NAT, but latency will always be higher than direct connection, and likely higher than a dedicated server.
 - NodeTunnel is built for session-based games (games like Lethal Company, Phasmophobia, etc.)
@@ -48,7 +49,7 @@ var peer: NodeTunnelPeer
 
 func _ready() -> void:
 	peer = NodeTunnelPeer.new()
-	peer.connect_to_relay("45.33.64.148:8080", "my_random_app_id")
+	peer.connect_to_relay("us-east.nodetunnel.io:8080", "my_random_app_id")
 	multiplayer.multiplayer_peer = peer
 	
 	print("Authenticating")
@@ -107,10 +108,13 @@ func _ready() -> void:
 			push_error("NodeTunnel Error: ", error_msg)
 	)
 	
-	peer.connect_to_relay("45.33.64.148:8080", "test_123213213")
+	peer.connect_to_relay("us-east.nodetunnel.io:8080", "test_123213213")
   ...
 ```
 Notice that the error signal is connected before calling any other functions. `connect_to_relay` can result in an error.
 
 ### What Next?
 After joining or hosting a room, everything remains the same as `ENetMultiplayerPeer`. Use `multiplayer.peer_connected` signals, `MultiplayerSynchronizers`, Spawners, etc.!
+
+## License
+MIT. See [LICENSE](LICENSE).

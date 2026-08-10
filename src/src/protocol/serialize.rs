@@ -1,5 +1,13 @@
+// Duplicated in relay-server/src/protocol/serialize.rs; keep in sync.
+
 use crate::protocol::error::ProtocolError;
 use crate::protocol::packet::RoomInfo;
+
+// Must match the server, or one side rejects strings the other sends.
+pub const MAX_STRING_LEN: usize = 256;
+
+// A RoomInfo is two 4-byte length prefixes plus payload.
+const MIN_ROOM_INFO_BYTES: usize = 8;
 
 pub fn read_bool(bytes: &[u8]) -> Result<(bool, &[u8]), ProtocolError> {
     let (value, rest) = read_i32(bytes)?;
@@ -30,14 +38,23 @@ pub fn read_u64(bytes: &[u8]) -> Result<(u64, &[u8]), ProtocolError> {
 pub fn read_string(bytes: &[u8]) -> Result<(String, &[u8]), ProtocolError> {
     let (len, rest) = read_i32(bytes)?;
 
-    if rest.len() < len as usize {
+    if len < 0 {
+        return Err(ProtocolError::NegativeLength(len));
+    }
+    let len = len as usize;
+
+    if len > MAX_STRING_LEN {
+        return Err(ProtocolError::TooLong { len, max: MAX_STRING_LEN });
+    }
+
+    if rest.len() < len {
         return Err(ProtocolError::NotEnoughBytes(
             format!("for string (need {} bytes, have {})", len, rest.len())
         ));
     }
 
-    let string_bytes = &rest[..len as usize];
-    let remaining = &rest[len as usize..];
+    let string_bytes = &rest[..len];
+    let remaining = &rest[len..];
 
     Ok((String::from_utf8(string_bytes.to_vec())?, remaining))
 }
@@ -69,10 +86,18 @@ pub fn read_vec_room_info(bytes: &[u8]) -> Result<(Vec<RoomInfo>, &[u8]), Protoc
     let (len, mut rest) = read_i32(bytes)?;
 
     if len < 0 {
-        return Err(ProtocolError::NegativeVectorLength());
+        return Err(ProtocolError::NegativeLength(len));
+    }
+    let len = len as usize;
+
+    // Bounds the allocation by datagram size; i32::MAX would otherwise abort the process.
+    if len > rest.len() / MIN_ROOM_INFO_BYTES {
+        return Err(ProtocolError::NotEnoughBytes(
+            format!("for {} rooms (have {} bytes)", len, rest.len())
+        ));
     }
 
-    let mut rooms = Vec::with_capacity(len as usize);
+    let mut rooms = Vec::with_capacity(len);
     for _ in 0..len {
         let (room, remaining) = read_room_info(rest)?;
         rooms.push(room);

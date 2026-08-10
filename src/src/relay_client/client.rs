@@ -75,7 +75,7 @@ impl RelayClient {
     fn handle_packet(&mut self, data: Vec<u8>, channel: Channel) -> Result<Vec<RelayEvent>, RelayClientError> {
         let mut events = vec![];
 
-        if let Ok(packet_type) = PacketType::from_bytes(&data) {
+        if let Ok(packet_type) = PacketType::from_server_bytes(&data) {
             match packet_type {
                 PacketType::ClientAuthenticated => {
                     self.client_state = ClientState::Authenticated;
