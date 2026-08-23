@@ -1,7 +1,7 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
-use godot::builtin::{Array, Callable, Dictionary, GString, PackedByteArray, Variant};
+use godot::builtin::{Array, Callable, GString, PackedByteArray, VarDictionary, Variant};
 use godot::prelude::{godot_api, GodotClass};
 use godot::classes::{IMultiplayerPeerExtension, MultiplayerPeerExtension};
 use godot::classes::multiplayer_peer::{ConnectionStatus, TransferMode};
@@ -234,7 +234,7 @@ impl NodeTunnelPeer {
                 let mut room_array = Array::new();
 
                 for room in rooms {
-                    let mut room_dict = Dictionary::new();
+                    let mut room_dict = VarDictionary::new();
                     room_dict.set("id", room.id.clone());
                     room_dict.set("metadata", room.metadata.clone());
 
