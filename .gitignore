@@ -14,3 +14,4 @@ addons/nodetunnel/bin/*.dylib
 src/target/
 
 .DS_Store
+dist/

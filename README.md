@@ -28,12 +28,10 @@
 - NodeTunnel is built for session-based games (games like Lethal Company, Phasmophobia, etc.)
 
 ### Installation
-1. Download the latest release of NodeTunnel under [releases](https://github.com/NodeTunnel/godot-plugin/releases/latest)
+1. Install NodeTunnel in the asset store: [https://store.godotengine.org/asset/androodev/nodetunnel/](https://store.godotengine.org/asset/androodev/nodetunnel/) (in Godot 4.7 or higher). Or download the latest release of NodeTunnel under [releases](https://github.com/NodeTunnel/godot-plugin/releases/latest)
 2. Download `nodetunnel.zip` if on Windows or Mac, **Linux users should download `nodetunnel.tar.gz`**
 3. Decompress the downloaded file and drag n' drop the `nodetunnel` folder into `res://addons` in Godot
 4. Make sure the NodeTunnel plugin is enabled in project settings
-
-*In the future, I hope to get NodeTunnel on the Godot Asset Library!*
 
 ## Using NodeTunnel
 NodeTunnel's API is very easy to use. Because NodeTunnel integrates with Godot's high-level multiplayer API, converting your `ENetMultiplayerPeer` setup is super simple. All of your game logic
@@ -57,6 +55,10 @@ func _ready() -> void:
 	print("Authenticated!")
 ```
 *Note: You can use whatever app ID you want, but make sure it's somewhat unique. Conflicting app IDs will result in issues. This is obviously an issue and will be fixed soon.*
+
+> [!TIP]
+> Hosting the relay server at `us-east.nodetunnel.io` has costs. I am happy to do it for free, but please consider a one time or recurring membership to [GitHub Sponsors (jonandrewdavis)](https://github.com/sponsors/jonandrewdavis) or [AndrooDev Patreon](https://www.patreon.com/cw/AndrooDev) to support it and NodeTunnel development. Thanks!
+
 
 ### Hosting a Room
 After authenticating with the relay server, you may then host a room. Doing so is easy:
@@ -115,6 +117,11 @@ Notice that the error signal is connected before calling any other functions. `c
 
 ### What Next?
 After joining or hosting a room, everything remains the same as `ENetMultiplayerPeer`. Use `multiplayer.peer_connected` signals, `MultiplayerSynchronizers`, Spawners, etc.!
+
+
+### Hosting your own Nodetunnel relay server
+
+Hosting can be done on any platform by running the Rust project or using the Docker image. See server source: [https://github.com/NodeTunnel/relay-server](https://github.com/NodeTunnel/relay-server). 
 
 ## License
 MIT. See [LICENSE](LICENSE).
