@@ -71,7 +71,7 @@ impl ClientTransport {
                             }
 
                             if let Some(ack) = ack_packet {
-                                self.socket.send_to(&ack, self.server_addr).unwrap();
+                                let _ = self.try_send_packet(ack);
                             }
                         }
                         DecodeResult::Ack { .. } => {}
@@ -148,8 +148,7 @@ impl ClientTransport {
             &payload,
             PacketType::Unreliable,
         );
-        self.socket.send_to(&pkt, self.server_addr)?;
-        Ok(())
+        self.try_send_packet(pkt)
     }
 
     pub(crate) fn is_connected(&self) -> bool {
