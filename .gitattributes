@@ -1,2 +1,4 @@
 # Normalize EOL for all files that Git considers text files.
+/dist
+.DS_Store
 * text=auto eol=lf
