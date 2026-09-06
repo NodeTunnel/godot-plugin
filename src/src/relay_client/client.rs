@@ -41,7 +41,7 @@ impl RelayClient {
 
         self.last_update += delta;
         if self.last_update >= Duration::from_secs(5) {
-            transport.send_keepalive().expect("TODO: panic message");
+            transport.send_keepalive().expect("failed to send keepalive to relay");
             self.last_update = Duration::ZERO;
         }
 
@@ -192,7 +192,7 @@ impl RelayClient {
         transport.send(
             packet_type.to_bytes(),
             channel,
-        ).expect("TODO: panic message");
+        ).expect("failed to send packet to relay");
 
         Ok(())
     }
