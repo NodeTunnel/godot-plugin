@@ -119,7 +119,7 @@ Notice that the error signal is connected before calling any other functions. `c
 After joining or hosting a room, everything remains the same as `ENetMultiplayerPeer`. Use `multiplayer.peer_connected` signals, `MultiplayerSynchronizers`, Spawners, etc.!
 
 
-### Hosting your own Nodetunnel relay server
+### Hosting Your Own Nodetunnel Relay Server
 
 Hosting can be done on any platform by running the Rust project or using the Docker image. See server source: [https://github.com/NodeTunnel/relay-server](https://github.com/NodeTunnel/relay-server). 
 
