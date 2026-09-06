@@ -47,14 +47,14 @@ var peer: NodeTunnelPeer
 
 func _ready() -> void:
 	peer = NodeTunnelPeer.new()
-	peer.connect_to_relay("us-east.nodetunnel.io:8080", "my_random_app_id")
+	peer.connect_to_relay("us-east.nodetunnel.io:8080", "my_random_app_id") # https://www.nodetunnel.io/
 	multiplayer.multiplayer_peer = peer
 	
 	print("Authenticating")
 	await peer.authenticated
 	print("Authenticated!")
 ```
-*Note: You can use whatever app ID you want, but make sure it's somewhat unique. Conflicting app IDs will result in issues. This is obviously an issue and will be fixed soon.*
+*Note: If you are using the free relay server above, you need to go to https://www.nodetunnel.io/ to register an app_id. If you're hosing your own [NodeTunnelrelay server](https://github.com/NodeTunnel/relay-server), you can set up your own whitelist or permissions.*
 
 > [!TIP]
 > Hosting the relay server at `us-east.nodetunnel.io` has costs. I am happy to do it for free, but please consider a one time or recurring membership to [GitHub Sponsors (jonandrewdavis)](https://github.com/sponsors/jonandrewdavis) or [AndrooDev Patreon](https://www.patreon.com/cw/AndrooDev) to support it and NodeTunnel development. Thanks!
@@ -119,7 +119,7 @@ Notice that the error signal is connected before calling any other functions. `c
 After joining or hosting a room, everything remains the same as `ENetMultiplayerPeer`. Use `multiplayer.peer_connected` signals, `MultiplayerSynchronizers`, Spawners, etc.!
 
 
-### Hosting your own Nodetunnel relay server
+### Hosting Your Own Nodetunnel Relay Server
 
 Hosting can be done on any platform by running the Rust project or using the Docker image. See server source: [https://github.com/NodeTunnel/relay-server](https://github.com/NodeTunnel/relay-server). 
 
