@@ -68,7 +68,7 @@ After authenticating with the relay server, you may then host a room. Doing so i
 var peer: NodeTunnelPeer
 
 func host_room() -> void:
-	peer.host_room(true, "My Room", 4)
+	peer.host_room(true, "My Room")
 	
 	print("Hosting room...")
 	var room_id = await peer.room_connected
