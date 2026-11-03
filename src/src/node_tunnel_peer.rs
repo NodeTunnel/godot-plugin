@@ -292,7 +292,7 @@ impl NodeTunnelPeer {
                 });
             },
             RelayEvent::ForceDisconnect => {
-                if self.connection_status == ConnectionStatus::CONNECTED {
+                if self.connection_status != ConnectionStatus::DISCONNECTED {
                     godot_warn!("[NodeTunnel] Client was forcibly disconnected from relay");
                     self.close();
                     self.signals().forced_disconnect().emit();
@@ -401,6 +401,10 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
     }
 
     fn poll(&mut self) {
+        if !self.relay_client.is_connected() {
+            return;
+        }
+
         let now = Instant::now();
         let delta = match self.last_poll_time {
             Some(last) => now.duration_since(last),
@@ -435,11 +439,28 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
             return;
         }
 
+        for (peer, data, channel) in self.outgoing_queue.drain(..) {
+            if let Err(e) = self.relay_client.send_game_data(peer, data, channel) {
+                godot_error!("[NodeTunnel] Failed to send game data: {}", e);
+            }
+        }
+
+        self.relay_client.disconnect();
+        self.incoming_packets.clear();
         self.unique_id = 0;
         self.connection_status = ConnectionStatus::DISCONNECTED;
     }
 
-    fn disconnect_peer(&mut self, _p_peer: i32, _p_force: bool) {}
+    fn disconnect_peer(&mut self, p_peer: i32, _p_force: bool) {
+        if !self.is_server() {
+            godot_error!("[NodeTunnel] Only the host can disconnect a peer");
+            return;
+        }
+
+        if let Err(e) = self.relay_client.kick_peer(p_peer) {
+            godot_error!("[NodeTunnel] Failed to disconnect peer {}: {}", p_peer, e);
+        }
+    }
 
     fn get_unique_id(&self) -> i32 {
         self.unique_id
