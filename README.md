@@ -115,6 +115,15 @@ func _ready() -> void:
 ```
 Notice that the error signal is connected before calling any other functions. `connect_to_relay` can result in an error.
 
+### Kicking a Peer
+The host can remove a peer from the room. The kicked peer's `forced_disconnect` signal will emit.
+```python
+# multiplayer_example.gd
+
+func kick_peer(id: int) -> void:
+	multiplayer.multiplayer_peer.disconnect_peer(id)
+```
+
 ### What Next?
 After joining or hosting a room, everything remains the same as `ENetMultiplayerPeer`. Use `multiplayer.peer_connected` signals, `MultiplayerSynchronizers`, Spawners, etc.!
 

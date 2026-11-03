@@ -13,3 +13,5 @@ pub const GET_ROOMS: u8 = 11;
 pub const UPDATE_ROOM: u8 = 12;
 pub const JOIN_RES: u8 = 13;
 pub const PEER_JOIN_ATTEMPT: u8 = 14;
+pub const LEAVE: u8 = 15;
+pub const KICK_PEER: u8 = 16;

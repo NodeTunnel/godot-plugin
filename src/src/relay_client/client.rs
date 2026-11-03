@@ -180,6 +180,16 @@ impl RelayClient {
         Ok(())
     }
 
+    pub fn kick_peer(&mut self, peer_id: i32) -> Result<(), RelayClientError> {
+        self.send_packet(PacketType::KickPeer { peer_id }, Channel::Reliable)
+    }
+
+    pub fn disconnect(&mut self) {
+        if let Some(mut transport) = self.transport.take() {
+            let _ = transport.send(PacketType::Leave.to_bytes(), Channel::Unreliable);
+        }
+    }
+
     pub fn is_connected(&self) -> bool {
         self.transport.as_ref().map_or(false, |transport| transport.is_connected())
     }
@@ -195,5 +205,11 @@ impl RelayClient {
         ).expect("failed to send packet to relay");
 
         Ok(())
+    }
+}
+
+impl Drop for RelayClient {
+    fn drop(&mut self) {
+        self.disconnect();
     }
 }
