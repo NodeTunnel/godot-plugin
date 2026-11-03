@@ -54,6 +54,7 @@ struct NodeTunnelPeer {
     target_peer: i32,
     transfer_mode: TransferMode,
     incoming_packets: Vec<GamePacket>,
+    departed_peers: Vec<i32>,
     relay_client: RelayClient,
     outgoing_queue: Vec<(i32, Vec<u8>, Channel)>,
     last_poll_time: Option<Instant>,
@@ -277,7 +278,7 @@ impl NodeTunnelPeer {
                 }
             },
             RelayEvent::PeerLeftRoom { peer_id } => {
-                self.signals().peer_disconnected().emit(peer_id as i64);
+                self.departed_peers.push(peer_id);
             },
             RelayEvent::GameDataReceived { channel, from_peer, data } => {
                 let transfer_mode = match channel {
@@ -318,6 +319,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
             target_peer: 0,
             transfer_mode: TransferMode::UNRELIABLE,
             incoming_packets: vec![],
+            departed_peers: vec![],
             relay_client: RelayClient::new(),
             outgoing_queue: vec![],
             last_poll_time: None,
@@ -405,6 +407,10 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
             return;
         }
 
+        for peer_id in std::mem::take(&mut self.departed_peers) {
+            self.signals().peer_disconnected().emit(peer_id as i64);
+        }
+
         let now = Instant::now();
         let delta = match self.last_poll_time {
             Some(last) => now.duration_since(last),
@@ -447,6 +453,7 @@ impl IMultiplayerPeerExtension for NodeTunnelPeer {
 
         self.relay_client.disconnect();
         self.incoming_packets.clear();
+        self.departed_peers.clear();
         self.unique_id = 0;
         self.connection_status = ConnectionStatus::DISCONNECTED;
     }
